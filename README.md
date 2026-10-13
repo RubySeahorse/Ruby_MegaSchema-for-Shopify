@@ -1,6 +1,8 @@
 # Ruby MegaSchema for Shopify
 
-Theme-owned structured data for Shopify stores. MegaSchema replaces scattered JSON-LD blocks with one connected
+Hi! Project goal: boost organic search via better product and whole-site schema with theme-owned structured data for Shopify stores. 
+
+MegaSchema replaces scattered JSON-LD blocks with one connected
 `@graph` per page, in which the company, website, page, breadcrumb and main item reference each other by
 stable `@id`. It also includes a metafield-driven FAQ section and a validator that runs without installing
 anything beyond VS Code.
