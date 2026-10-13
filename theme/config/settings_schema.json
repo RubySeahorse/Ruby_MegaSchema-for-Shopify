@@ -1,0 +1,190 @@
+[
+  {
+    "name": "Structured data",
+    "settings": [
+      {
+        "type": "paragraph",
+        "content": "Values used by the MegaSchema JSON-LD (snippets/mega-schema*.liquid). Social profiles come from Settings > Brand in the Shopify admin and from the Social media settings above."
+      },
+      {
+        "type": "select",
+        "id": "schema_source",
+        "label": "Schema source",
+        "options": [
+          {
+            "value": "mega",
+            "label": "MegaSchema"
+          },
+          {
+            "value": "legacy",
+            "label": "Legacy theme microdata"
+          },
+          {
+            "value": "off",
+            "label": "Off"
+          }
+        ],
+        "default": "mega",
+        "info": "Legacy restores the theme's original microdata-schema snippet, for rollback."
+      },
+      {
+        "type": "header",
+        "content": "Company"
+      },
+      {
+        "type": "text",
+        "id": "schema_legal_name",
+        "label": "Legal name",
+        "info": "Leave blank to omit."
+      },
+      {
+        "type": "textarea",
+        "id": "schema_org_description",
+        "label": "Company description"
+      },
+      {
+        "type": "text",
+        "id": "schema_founding_date",
+        "label": "Founding date",
+        "info": "Year (1983) or full date (1983-01-01)."
+      },
+      {
+        "type": "text",
+        "id": "schema_phone",
+        "label": "Customer service phone"
+      },
+      {
+        "type": "text",
+        "id": "schema_email",
+        "label": "Customer service email"
+      },
+      {
+        "type": "text",
+        "id": "schema_street",
+        "label": "Street address"
+      },
+      {
+        "type": "text",
+        "id": "schema_city",
+        "label": "City"
+      },
+      {
+        "type": "text",
+        "id": "schema_region",
+        "label": "State or region"
+      },
+      {
+        "type": "text",
+        "id": "schema_postal_code",
+        "label": "Postal code"
+      },
+      {
+        "type": "text",
+        "id": "schema_country",
+        "label": "Country code",
+        "info": "Two-letter code. Also used for shipping and return policy countries.",
+        "default": "US"
+      },
+      {
+        "type": "textarea",
+        "id": "schema_same_as",
+        "label": "Extra profile URLs",
+        "info": "One URL per line, for profiles not in Brand or Social media settings (for example Amazon or Wikipedia)."
+      },
+      {
+        "type": "text",
+        "id": "schema_brands",
+        "label": "Brands",
+        "info": "Comma-separated. Each becomes a Brand entity linked to the company. Product vendors are added on their product pages."
+      },
+      {
+        "type": "header",
+        "content": "Shipping"
+      },
+      {
+        "type": "number",
+        "id": "schema_shipping_rate",
+        "label": "Shipping rate",
+        "default": 0
+      },
+      {
+        "type": "number",
+        "id": "schema_handling_min",
+        "label": "Handling days, minimum",
+        "default": 1,
+        "info": "Confirm handling and transit times with operations."
+      },
+      {
+        "type": "number",
+        "id": "schema_handling_max",
+        "label": "Handling days, maximum",
+        "default": 3
+      },
+      {
+        "type": "number",
+        "id": "schema_transit_min",
+        "label": "Transit days, minimum",
+        "default": 3
+      },
+      {
+        "type": "number",
+        "id": "schema_transit_max",
+        "label": "Transit days, maximum",
+        "default": 5
+      },
+      {
+        "type": "header",
+        "content": "Returns"
+      },
+      {
+        "type": "number",
+        "id": "schema_return_days",
+        "label": "Return window (days)",
+        "default": 30
+      },
+      {
+        "type": "number",
+        "id": "schema_return_fee",
+        "label": "Return shipping fee",
+        "info": "Charged on returns that are not damaged, defective or shipped incorrectly. 0 means free returns.",
+        "default": 0
+      },
+      {
+        "type": "number",
+        "id": "schema_restocking_fee",
+        "label": "Restocking fee (%)",
+        "default": 0
+      },
+      {
+        "type": "text",
+        "id": "schema_final_sale_tags",
+        "label": "Final-sale product tags",
+        "info": "Comma-separated. Products with any of these tags are marked as not returnable."
+      },
+      {
+        "type": "text",
+        "id": "schema_return_policy_url",
+        "label": "Return policy URL",
+        "default": "/policies/refund-policy"
+      },
+      {
+        "type": "header",
+        "content": "Products and breadcrumbs"
+      },
+      {
+        "type": "checkbox",
+        "id": "schema_show_strikethrough",
+        "label": "Show compare-at prices as strikethrough prices",
+        "info": "Google expects a strikethrough price to be a genuine former price.",
+        "default": true
+      },
+      {
+        "type": "text",
+        "id": "schema_breadcrumb_exclude",
+        "label": "Collections to skip in product breadcrumbs",
+        "info": "Comma-separated collection handles. Used when a product is opened outside a collection.",
+        "default": "frontpage"
+      }
+    ]
+  }
+]

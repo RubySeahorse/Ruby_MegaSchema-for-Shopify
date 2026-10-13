@@ -1,0 +1,217 @@
+{%- doc -%}
+  Outputs the site-wide JSON-LD nodes for the MegaSchema @graph: Organization, WebSite, Brand,
+  the standard return policy, and on product pages the final-sale return policy and shipping details.
+  Each node is preceded by a comma; snippets/mega-schema.liquid removes the leading one.
+  Business values come from the "Structured data" group in theme settings.
+
+  @param {string} site_url - The store's primary URL without a trailing slash
+{%- enddoc -%}
+
+{%- liquid
+  assign org_id = site_url | append: '/#organization'
+  assign website_id = site_url | append: '/#website'
+  assign return_id = site_url | append: '/#return_policy'
+  assign return_final_id = site_url | append: '/#return_policy_final_sale'
+  assign shipping_id = site_url | append: '/#shipping_policy'
+  assign schema_currency = cart.currency.iso_code
+  assign schema_country = settings.schema_country | default: 'US'
+  assign return_link = settings.schema_return_policy_url | default: '/policies/refund-policy'
+  unless return_link contains '://'
+    assign return_link = site_url | append: return_link
+  endunless
+
+  assign same_as = ''
+  for social_link in shop.brand.metafields.social_links
+    assign link_value = social_link.last.value | strip
+    if link_value != blank
+      assign same_as = same_as | append: link_value | append: '|'
+    endif
+  endfor
+  assign social_keys = 'facebook,instagram,youtube,pinterest,tiktok,twitter,linkedin,threads,vimeo,tumblr,snapchat,reddit' | split: ','
+  for social_key in social_keys
+    assign setting_key = 'social_' | append: social_key
+    assign link_value = settings[setting_key] | strip
+    if link_value != blank
+      assign same_as = same_as | append: link_value | append: '|'
+    endif
+  endfor
+  assign extra_links = settings.schema_same_as | newline_to_br | split: '<br />'
+  for extra_link in extra_links
+    assign link_value = extra_link | strip
+    if link_value != blank
+      assign same_as = same_as | append: link_value | append: '|'
+    endif
+  endfor
+  assign same_as_list = same_as | split: '|' | uniq
+
+  assign brand_names = ''
+  assign configured_brands = settings.schema_brands | split: ','
+  for brand_name in configured_brands
+    assign clean_brand = brand_name | strip
+    if clean_brand != blank
+      assign brand_names = brand_names | append: clean_brand | append: '|'
+    endif
+  endfor
+  if request.page_type == 'product' and product.vendor != blank
+    assign brand_names = brand_names | append: product.vendor | append: '|'
+  endif
+  assign brand_list = brand_names | split: '|' | uniq
+-%}
+
+,{
+  "@type": "Organization",
+  "@id": {{ org_id | json }},
+  "name": {{ shop.name | json }},
+  "url": {{ site_url | json }},
+  {%- if settings.schema_legal_name != blank -%}
+    "legalName": {{ settings.schema_legal_name | json }},
+  {%- endif -%}
+  {%- if shop.brand.logo -%}
+    {%- assign logo_url = shop.brand.logo | image_url: width: shop.brand.logo.width | prepend: 'https:' -%}
+    "logo": {
+      "@type": "ImageObject",
+      "url": {{ logo_url | json }},
+      "width": {{ shop.brand.logo.width }},
+      "height": {{ shop.brand.logo.height }}
+    },
+    "image": {{ logo_url | json }},
+  {%- endif -%}
+  {%- assign org_description = settings.schema_org_description | default: shop.brand.short_description | strip -%}
+  {%- if org_description != blank -%}
+    "description": {{ org_description | json }},
+  {%- endif -%}
+  {%- if settings.schema_founding_date != blank -%}
+    "foundingDate": {{ settings.schema_founding_date | json }},
+  {%- endif -%}
+  {%- if settings.schema_street != blank -%}
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": {{ settings.schema_street | json }},
+      "addressLocality": {{ settings.schema_city | json }},
+      "addressRegion": {{ settings.schema_region | json }},
+      "postalCode": {{ settings.schema_postal_code | json }},
+      "addressCountry": {{ schema_country | json }}
+    },
+  {%- endif -%}
+  {%- if settings.schema_phone != blank or settings.schema_email != blank -%}
+    "contactPoint": {
+      "@type": "ContactPoint",
+      "contactType": "customer service",
+      {%- if settings.schema_phone != blank -%}"telephone": {{ settings.schema_phone | json }},{%- endif -%}
+      {%- if settings.schema_email != blank -%}"email": {{ settings.schema_email | json }},{%- endif -%}
+      "areaServed": {{ schema_country | json }},
+      "availableLanguage": "English"
+    },
+  {%- endif -%}
+  {%- if same_as_list.size > 0 -%}
+    "sameAs": {{ same_as_list | json }},
+  {%- endif -%}
+  {%- if brand_list.size > 0 -%}
+    "brand": [
+      {%- for brand_name in brand_list -%}
+        {%- assign brand_handle = brand_name | handleize -%}
+        {"@id": {{ site_url | append: '/#brand-' | append: brand_handle | json }}}{%- unless forloop.last -%},{%- endunless -%}
+      {%- endfor -%}
+    ],
+  {%- endif -%}
+  "hasMerchantReturnPolicy": {"@id": {{ return_id | json }}}
+}
+
+,{
+  "@type": "WebSite",
+  "@id": {{ website_id | json }},
+  "name": {{ shop.name | json }},
+  "url": {{ site_url | json }},
+  {%- if shop.description != blank -%}
+    "description": {{ shop.description | strip | json }},
+  {%- endif -%}
+  "inLanguage": {{ request.locale.iso_code | json }},
+  "publisher": {"@id": {{ org_id | json }}},
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": {
+      "@type": "EntryPoint",
+      "urlTemplate": {{ site_url | append: routes.search_url | append: '?q={search_term_string}' | json }}
+    },
+    "query-input": "required name=search_term_string"
+  }
+}
+
+{%- for brand_name in brand_list -%}
+  {%- assign brand_handle = brand_name | handleize -%}
+  ,{
+    "@type": "Brand",
+    "@id": {{ site_url | append: '/#brand-' | append: brand_handle | json }},
+    "name": {{ brand_name | json }}
+    {%- if collections[brand_handle] != blank -%}
+      ,"url": {{ site_url | append: collections[brand_handle].url | json }}
+    {%- endif -%}
+  }
+{%- endfor -%}
+
+,{
+  "@type": "MerchantReturnPolicy",
+  "@id": {{ return_id | json }},
+  "applicableCountry": [{{ schema_country | json }}],
+  "returnPolicyCountry": {{ schema_country | json }},
+  "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow",
+  "merchantReturnDays": {{ settings.schema_return_days | default: 30 }},
+  "returnMethod": "https://schema.org/ReturnByMail",
+  "refundType": "https://schema.org/FullRefund",
+  "itemCondition": "https://schema.org/NewCondition",
+  {%- if settings.schema_return_fee > 0 -%}
+    "customerRemorseReturnFees": "https://schema.org/ReturnShippingFees",
+    "customerRemorseReturnShippingFeesAmount": {
+      "@type": "MonetaryAmount",
+      "value": {{ settings.schema_return_fee }},
+      "currency": {{ schema_currency | json }}
+    },
+  {%- else -%}
+    "customerRemorseReturnFees": "https://schema.org/FreeReturn",
+  {%- endif -%}
+  {%- if settings.schema_restocking_fee > 0 -%}
+    "restockingFee": {{ settings.schema_restocking_fee }},
+  {%- endif -%}
+  "itemDefectReturnFees": "https://schema.org/FreeReturn",
+  "merchantReturnLink": {{ return_link | json }}
+}
+
+{%- if request.page_type == 'product' -%}
+  ,{
+    "@type": "MerchantReturnPolicy",
+    "@id": {{ return_final_id | json }},
+    "applicableCountry": [{{ schema_country | json }}],
+    "returnPolicyCountry": {{ schema_country | json }},
+    "returnPolicyCategory": "https://schema.org/MerchantReturnNotPermitted",
+    "merchantReturnLink": {{ return_link | json }}
+  }
+
+  ,{
+    "@type": "OfferShippingDetails",
+    "@id": {{ shipping_id | json }},
+    "shippingRate": {
+      "@type": "MonetaryAmount",
+      "value": {{ settings.schema_shipping_rate | default: 0 }},
+      "currency": {{ schema_currency | json }}
+    },
+    "shippingDestination": {
+      "@type": "DefinedRegion",
+      "addressCountry": {{ schema_country | json }}
+    },
+    "deliveryTime": {
+      "@type": "ShippingDeliveryTime",
+      "handlingTime": {
+        "@type": "QuantitativeValue",
+        "minValue": {{ settings.schema_handling_min | default: 1 }},
+        "maxValue": {{ settings.schema_handling_max | default: 3 }},
+        "unitCode": "DAY"
+      },
+      "transitTime": {
+        "@type": "QuantitativeValue",
+        "minValue": {{ settings.schema_transit_min | default: 3 }},
+        "maxValue": {{ settings.schema_transit_max | default: 5 }},
+        "unitCode": "DAY"
+      }
+    }
+  }
+{%- endif -%}

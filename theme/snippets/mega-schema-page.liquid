@@ -1,0 +1,237 @@
+{%- doc -%}
+  Outputs the page-level JSON-LD nodes for the MegaSchema @graph: the page node (WebPage, ItemPage,
+  CollectionPage, AboutPage, ContactPage or SearchResultsPage), its BreadcrumbList, and the collection
+  ItemList, Blog or BlogPosting when the page has one.
+  Each node is preceded by a comma; snippets/mega-schema.liquid removes the leading one.
+
+  @param {string} site_url - The store's primary URL without a trailing slash
+  @param {string} page_url - The page's canonical URL
+{%- enddoc -%}
+
+{%- liquid
+  assign org_id = site_url | append: '/#organization'
+  assign website_id = site_url | append: '/#website'
+  assign webpage_id = page_url | append: '#webpage'
+  assign breadcrumb_id = page_url | append: '#breadcrumb'
+  assign has_breadcrumb = true
+  assign page_type = 'WebPage'
+  assign main_entity_id = ''
+  assign about_id = ''
+  assign page_image = ''
+
+  case request.page_type
+    when 'index'
+      assign has_breadcrumb = false
+      assign about_id = org_id
+    when 'product'
+      assign page_type = 'ItemPage'
+      assign main_entity_id = site_url | append: product.url | append: '#product'
+      if product.has_only_default_variant == false
+        assign main_entity_id = site_url | append: product.url | append: '#productgroup'
+      endif
+      assign page_image = product.featured_image
+    when 'collection'
+      assign page_type = 'CollectionPage'
+      assign main_entity_id = page_url | append: '#itemlist'
+      assign page_image = collection.image
+    when 'blog'
+      assign main_entity_id = page_url | append: '#blog'
+    when 'article'
+      assign main_entity_id = page_url | append: '#article'
+      assign page_image = article.image
+    when 'page'
+      if page.handle contains 'about'
+        assign page_type = 'AboutPage'
+        assign main_entity_id = org_id
+      elsif page.handle == 'contact' or page.template_suffix == 'contact'
+        assign page_type = 'ContactPage'
+        assign main_entity_id = org_id
+      endif
+    when 'search'
+      assign page_type = 'SearchResultsPage'
+    when '404', 'cart', 'password'
+      assign has_breadcrumb = false
+  endcase
+
+  assign crumb_names = ''
+  assign crumb_urls = ''
+  if has_breadcrumb
+    case request.page_type
+      when 'product'
+        assign crumb_collection = collection
+        if crumb_collection == blank
+          assign excluded_handles = settings.schema_breadcrumb_exclude | remove: ' ' | split: ','
+          for product_collection in product.collections
+            unless excluded_handles contains product_collection.handle
+              assign crumb_collection = product_collection
+              break
+            endunless
+          endfor
+        endif
+        if crumb_collection != blank
+          assign crumb_names = crumb_names | append: crumb_collection.title | append: '|~|'
+          assign crumb_urls = crumb_urls | append: site_url | append: crumb_collection.url | append: '|~|'
+        endif
+        assign crumb_names = crumb_names | append: product.title
+        assign crumb_urls = crumb_urls | append: site_url | append: product.url
+      when 'collection'
+        assign crumb_names = collection.title
+        assign crumb_urls = page_url
+      when 'blog'
+        assign crumb_names = blog.title
+        assign crumb_urls = page_url
+      when 'article'
+        assign crumb_names = blog.title | append: '|~|' | append: article.title
+        assign crumb_urls = site_url | append: blog.url | append: '|~|' | append: page_url
+      when 'page'
+        assign crumb_names = page.title
+        assign crumb_urls = page_url
+      else
+        assign crumb_names = page_title
+        assign crumb_urls = page_url
+    endcase
+  endif
+  assign crumb_name_list = crumb_names | split: '|~|'
+  assign crumb_url_list = crumb_urls | split: '|~|'
+-%}
+
+,{
+  "@type": {{ page_type | json }},
+  "@id": {{ webpage_id | json }},
+  "url": {{ page_url | json }},
+  "name": {{ page_title | strip | json }},
+  {%- if page_description != blank -%}
+    "description": {{ page_description | strip | json }},
+  {%- endif -%}
+  {%- if page_image != blank -%}
+    "primaryImageOfPage": {
+      "@type": "ImageObject",
+      "url": {{ page_image | image_url: width: 1200 | prepend: 'https:' | json }}
+    },
+  {%- endif -%}
+  {%- if main_entity_id != blank -%}
+    "mainEntity": {"@id": {{ main_entity_id | json }}},
+  {%- endif -%}
+  {%- if about_id != blank -%}
+    "about": {"@id": {{ about_id | json }}},
+  {%- endif -%}
+  {%- if has_breadcrumb and crumb_name_list.size > 0 -%}
+    "breadcrumb": {"@id": {{ breadcrumb_id | json }}},
+  {%- endif -%}
+  "inLanguage": {{ request.locale.iso_code | json }},
+  "isPartOf": {"@id": {{ website_id | json }}}
+}
+
+{%- if has_breadcrumb and crumb_name_list.size > 0 -%}
+  ,{
+    "@type": "BreadcrumbList",
+    "@id": {{ breadcrumb_id | json }},
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": {{ site_url | json }}
+      }
+      {%- for crumb_name in crumb_name_list -%}
+        ,{
+          "@type": "ListItem",
+          "position": {{ forloop.index | plus: 1 }},
+          "name": {{ crumb_name | strip | json }},
+          "item": {{ crumb_url_list[forloop.index0] | json }}
+        }
+      {%- endfor -%}
+    ]
+  }
+{%- endif -%}
+
+{%- if request.page_type == 'collection' -%}
+  ,{
+    "@type": "ItemList",
+    "@id": {{ page_url | append: '#itemlist' | json }},
+    "name": {{ collection.title | json }},
+    {%- assign collection_description = collection.description | strip_html | strip | truncate: 300 -%}
+    {%- if collection_description != blank -%}
+      "description": {{ collection_description | json }},
+    {%- endif -%}
+    "numberOfItems": {{ collection.products_count }},
+    "itemListElement": [
+      {%- for listed_product in collection.products limit: 24 -%}
+        {
+          "@type": "ListItem",
+          "position": {{ forloop.index }},
+          "url": {{ site_url | append: listed_product.url | json }},
+          "name": {{ listed_product.title | json }}
+        }{%- unless forloop.last -%},{%- endunless -%}
+      {%- endfor -%}
+    ]
+  }
+{%- endif -%}
+
+{%- if request.page_type == 'blog' -%}
+  ,{
+    "@type": "Blog",
+    "@id": {{ page_url | append: '#blog' | json }},
+    "name": {{ blog.title | json }},
+    "url": {{ page_url | json }},
+    "publisher": {"@id": {{ org_id | json }}},
+    "blogPost": [
+      {%- for blog_article in blog.articles limit: 20 -%}
+        {%- assign article_url = site_url | append: blog_article.url -%}
+        {
+          "@type": "BlogPosting",
+          "@id": {{ article_url | append: '#article' | json }},
+          "headline": {{ blog_article.title | json }},
+          "url": {{ article_url | json }},
+          {%- if blog_article.image -%}
+            "image": {{ blog_article.image | image_url: width: 1200 | prepend: 'https:' | json }},
+          {%- endif -%}
+          "datePublished": {{ blog_article.published_at | date: '%Y-%m-%dT%H:%M:%S%z' | json }},
+          "dateModified": {{ blog_article.updated_at | date: '%Y-%m-%dT%H:%M:%S%z' | json }},
+          {%- if blog_article.author == blank or blog_article.author == shop.name -%}
+            "author": {"@id": {{ org_id | json }}}
+          {%- else -%}
+            "author": {"@type": "Person", "name": {{ blog_article.author | json }}}
+          {%- endif -%}
+        }{%- unless forloop.last -%},{%- endunless -%}
+      {%- endfor -%}
+    ]
+  }
+{%- endif -%}
+
+{%- if request.page_type == 'article' -%}
+  {%- liquid
+    assign article_description = article.excerpt | strip_html | strip
+    if article_description == blank
+      assign article_description = article.content | strip_html | strip | truncate: 300
+    endif
+  -%}
+  ,{
+    "@type": "BlogPosting",
+    "@id": {{ page_url | append: '#article' | json }},
+    "headline": {{ article.title | json }},
+    "url": {{ page_url | json }},
+    {%- if article_description != blank -%}
+      "description": {{ article_description | json }},
+    {%- endif -%}
+    {%- if article.image -%}
+      "image": [{{ article.image | image_url: width: 1200 | prepend: 'https:' | json }}],
+    {%- endif -%}
+    "datePublished": {{ article.published_at | date: '%Y-%m-%dT%H:%M:%S%z' | json }},
+    "dateModified": {{ article.updated_at | date: '%Y-%m-%dT%H:%M:%S%z' | json }},
+    {%- if article.author == blank or article.author == shop.name -%}
+      "author": {"@id": {{ org_id | json }}},
+    {%- else -%}
+      "author": {"@type": "Person", "name": {{ article.author | json }}},
+    {%- endif -%}
+    "publisher": {"@id": {{ org_id | json }}},
+    "mainEntityOfPage": {"@id": {{ webpage_id | json }}},
+    "isPartOf": {
+      "@type": "Blog",
+      "@id": {{ site_url | append: blog.url | append: '#blog' | json }},
+      "name": {{ blog.title | json }},
+      "url": {{ site_url | append: blog.url | json }}
+    },
+    "inLanguage": {{ request.locale.iso_code | json }}
+  }
+{%- endif -%}

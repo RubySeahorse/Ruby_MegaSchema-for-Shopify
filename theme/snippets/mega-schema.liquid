@@ -1,0 +1,29 @@
+{%- doc -%}
+  Ruby MegaSchema: outputs all of the site's structured data as one JSON-LD @graph, in place of
+  snippets/microdata-schema.liquid. Rendered once from layout/theme.liquid when the "Schema source"
+  theme setting is MegaSchema.
+
+  Site-wide nodes come from mega-schema-site, the page node and breadcrumb from mega-schema-page, and
+  the product node from mega-schema-product. FAQPage stays in sections/metafield-faq.liquid and
+  sections/faq.liquid, next to the questions it describes, and links into this graph by @id.
+
+  @example
+  {% render 'mega-schema' %}
+{%- enddoc -%}
+
+{%- liquid
+  assign site_url = shop.url
+  assign page_url = canonical_url | split: '?' | first
+-%}
+
+{%- capture schema_graph -%}
+  {%- render 'mega-schema-site', site_url: site_url -%}
+  {%- render 'mega-schema-page', site_url: site_url, page_url: page_url -%}
+  {%- if request.page_type == 'product' -%}
+    {%- render 'mega-schema-product', site_url: site_url -%}
+  {%- endif -%}
+{%- endcapture -%}
+
+<script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{{ schema_graph | strip | remove_first: ',' }}]}
+</script>

@@ -1,0 +1,12 @@
+{%- comment -%}
+  Paste into layout/theme.liquid just before </body>, in place of the theme's existing structured-data
+  render. "Legacy" points at the theme's previous schema snippet (Prestige: microdata-schema) so the
+  store can roll back from Theme settings > Structured data without a code change.
+{%- endcomment -%}
+{%- case settings.schema_source -%}
+  {%- when 'legacy' -%}
+    {%- render 'microdata-schema' -%}
+  {%- when 'off' -%}
+  {%- else -%}
+    {%- render 'mega-schema' -%}
+{%- endcase -%}

@@ -1,0 +1,393 @@
+{%- comment -%}
+  FAQ accordion driven by metafields.
+  
+{%- endcomment -%}
+
+{%- liquid
+  if request.page_type == 'product'
+    assign faq_resource = product
+    assign faq_prefix = 'pdp_faq_'
+  elsif request.page_type == 'collection'
+    assign faq_resource = collection
+    assign faq_prefix = 'plp_faq_'
+  endif
+
+  assign faq_count = 0
+  assign faq_items = ''
+  assign faq_entities = ''
+
+  if faq_prefix
+    for i in (1..12)
+      assign question_key = faq_prefix | append: 'question_' | append: i
+      assign answer_key = faq_prefix | append: 'answer_' | append: i
+      assign faq_question = faq_resource.metafields.custom[question_key].value | strip
+      assign faq_answer = faq_resource.metafields.custom[answer_key].value | strip
+
+      if faq_question != blank and faq_answer != blank
+        capture faq_item
+          echo '<li class="metafield-faq__item"><details><summary><h3 class="metafield-faq__question">'
+          echo faq_question | escape
+          echo '</h3><svg xmlns="http://www.w3.org/2000/svg" class="metafield-faq__icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="6 9 12 15 18 9"></polyline></svg></summary><div class="metafield-faq__answer"><p>'
+          echo faq_answer | escape
+          echo '</p></div></details></li>'
+        endcapture
+
+        capture faq_entity
+          if faq_count > 0
+            echo ','
+          endif
+          echo '{"@type":"Question","name":'
+          echo faq_question | json
+          echo ',"acceptedAnswer":{"@type":"Answer","text":'
+          echo faq_answer | json
+          echo '}}'
+        endcapture
+
+        assign faq_items = faq_items | append: faq_item
+        assign faq_entities = faq_entities | append: faq_entity
+        assign faq_count = faq_count | plus: 1
+      endif
+    endfor
+
+    assign title_key = faq_prefix | append: 'title'
+    assign faq_title = faq_resource.metafields.custom[title_key].value | strip | default: section.settings.default_title
+  endif
+-%}
+
+{%- if faq_count > 0 -%}
+  {%- assign color_scheme_hash = section.settings.color_scheme.settings.background_gradient | default: section.settings.color_scheme.settings.background | md5 -%}
+
+  <div class="color-scheme color-scheme--{{ section.settings.color_scheme.id }} color-scheme--bg-{{ color_scheme_hash }} {% unless section.settings.remove_vertical_spacing %}section-spacing{% endunless %} {% if section.settings.separate_section_with_border %}bordered-section{% endif %}">
+    <div {% unless section.settings.remove_horizontal_spacing %}class="container"{% endunless %}>
+      <div
+        class="metafield-faq"
+        style="
+          --faq-max-width: {{ section.settings.max_width }}px;
+          --faq-padding: {{ section.settings.padding }}px;
+          --faq-shadow: {{ section.settings.shadow }}px;
+          --faq-heading-align: {{ section.settings.heading_alignment }};
+          --faq-heading-size: {{ section.settings.heading_size }}px;
+          --faq-heading-color: {{ section.settings.heading_color }};
+          --faq-q-size: {{ section.settings.question_size }}px;
+          --faq-q-color: {{ section.settings.question_color }};
+          --faq-a-size: {{ section.settings.answer_size }}px;
+          --faq-a-color: {{ section.settings.answer_color }};
+          --faq-hover: {{ section.settings.hover_color }};
+          --faq-icon: {{ section.settings.icon_color }};
+          --faq-border-color: {{ section.settings.border_color }};
+        "
+      >
+        <h2 class="metafield-faq__title">{{ faq_title | escape }}</h2>
+        <ul class="metafield-faq__list" role="list">
+          {{- faq_items -}}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  {%- if section.settings.output_schema -%}
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "@id": {{ canonical_url | append: '#faq' | json }},
+        "name": {{ faq_title | json }},
+        "isPartOf": {"@id": {{ canonical_url | split: '?' | first | append: '#webpage' | json }}},
+        {%- if request.page_type == 'product' -%}
+          {%- if product.has_only_default_variant or product.variants.size == 1 -%}
+            "about": {"@id": {{ shop.url | append: product.url | append: '#product' | json }}},
+          {%- else -%}
+            "about": {"@id": {{ shop.url | append: product.url | append: '#productgroup' | json }}},
+          {%- endif -%}
+        {%- else -%}
+          "about": {"@id": {{ canonical_url | split: '?' | first | append: '#webpage' | json }}},
+        {%- endif -%}
+        "mainEntity": [{{ faq_entities }}]
+      }
+    </script>
+  {%- endif -%}
+{%- elsif request.design_mode -%}
+  <div class="container section-spacing">
+    <p class="text-subdued">This page has no FAQ metafields filled in, so the FAQ section is hidden on the live store.</p>
+  </div>
+{%- endif -%}
+
+{% stylesheet %}
+  .metafield-faq {
+    width: var(--faq-max-width);
+    max-width: 100%;
+    box-sizing: border-box;
+    margin-left: auto;
+    margin-right: auto;
+    padding: var(--faq-padding);
+    border-radius: 8px;
+    box-shadow: 0 0 var(--faq-shadow) rgba(0, 0, 0, 0.1);
+  }
+
+  .metafield-faq__title {
+    text-align: var(--faq-heading-align);
+    font-size: var(--faq-heading-size);
+    color: var(--faq-heading-color);
+    font-weight: 600;
+    margin: 0 0 10px;
+  }
+
+  .metafield-faq__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .metafield-faq__item {
+    border-bottom: 1px solid var(--faq-border-color);
+  }
+
+  .metafield-faq__item:last-child {
+    border-bottom: none;
+  }
+
+  .metafield-faq details {
+    cursor: pointer;
+  }
+
+  .metafield-faq summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    list-style: none;
+    transition: color 0.3s;
+  }
+
+  .metafield-faq summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .metafield-faq__question {
+    flex: 1;
+    margin: 0;
+    font-size: var(--faq-q-size);
+    font-weight: 500;
+    color: var(--faq-q-color);
+  }
+
+  .metafield-faq summary:hover .metafield-faq__question,
+  .metafield-faq summary:focus-visible .metafield-faq__question {
+    color: var(--faq-hover);
+  }
+
+  .metafield-faq__icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    fill: none;
+    stroke: var(--faq-icon);
+    transition: transform 0.2s ease;
+  }
+
+  .metafield-faq details[open] .metafield-faq__icon {
+    transform: rotate(180deg);
+  }
+
+  .metafield-faq__answer {
+    padding: 10px 0;
+  }
+
+  .metafield-faq__answer p {
+    margin: 0;
+    font-size: var(--faq-a-size);
+    line-height: 1.6;
+    color: var(--faq-a-color);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .metafield-faq summary,
+    .metafield-faq__icon {
+      transition: none;
+    }
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "Metafield FAQ",
+  "class": "shopify-section--metafield-faq",
+  "tag": "section",
+  "enabled_on": {
+    "templates": ["product", "collection"]
+  },
+  "settings": [
+    {
+      "type": "paragraph",
+      "content": "Shows the FAQ from this page's metafields: pdp_faq_* on products, plp_faq_* on collections. Questions without an answer are skipped, and the section hides itself when there are none."
+    },
+    {
+      "type": "text",
+      "id": "default_title",
+      "label": "Fallback title",
+      "info": "Used when the FAQ title metafield is empty.",
+      "default": "Frequently asked questions"
+    },
+    {
+      "type": "checkbox",
+      "id": "output_schema",
+      "label": "Output FAQ structured data (JSON-LD)",
+      "info": "Turn off if another app or snippet already outputs FAQ structured data on this page.",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "Section"
+    },
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "Color scheme",
+      "default": "scheme-1"
+    },
+    {
+      "type": "checkbox",
+      "id": "separate_section_with_border",
+      "label": "Separate section with border",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "remove_vertical_spacing",
+      "label": "Remove vertical spacing",
+      "default": false
+    },
+    {
+      "type": "checkbox",
+      "id": "remove_horizontal_spacing",
+      "label": "Remove horizontal spacing",
+      "default": false
+    },
+    {
+      "type": "header",
+      "content": "FAQ box"
+    },
+    {
+      "type": "range",
+      "id": "max_width",
+      "label": "Maximum width",
+      "min": 400,
+      "max": 1400,
+      "step": 20,
+      "unit": "px",
+      "default": 800
+    },
+    {
+      "type": "range",
+      "id": "padding",
+      "label": "Padding",
+      "min": 0,
+      "max": 60,
+      "step": 2,
+      "unit": "px",
+      "default": 20
+    },
+    {
+      "type": "range",
+      "id": "shadow",
+      "label": "Shadow size",
+      "min": 0,
+      "max": 20,
+      "step": 1,
+      "unit": "px",
+      "default": 4
+    },
+    {
+      "type": "color",
+      "id": "border_color",
+      "label": "Divider color",
+      "default": "#dddddd"
+    },
+    {
+      "type": "header",
+      "content": "Title"
+    },
+    {
+      "type": "select",
+      "id": "heading_alignment",
+      "label": "Alignment",
+      "options": [
+        { "value": "left", "label": "Left" },
+        { "value": "center", "label": "Center" },
+        { "value": "right", "label": "Right" }
+      ],
+      "default": "center"
+    },
+    {
+      "type": "range",
+      "id": "heading_size",
+      "label": "Size",
+      "min": 14,
+      "max": 40,
+      "step": 1,
+      "unit": "px",
+      "default": 20
+    },
+    {
+      "type": "color",
+      "id": "heading_color",
+      "label": "Color",
+      "default": "#333333"
+    },
+    {
+      "type": "header",
+      "content": "Questions and answers"
+    },
+    {
+      "type": "range",
+      "id": "question_size",
+      "label": "Question size",
+      "min": 12,
+      "max": 28,
+      "step": 1,
+      "unit": "px",
+      "default": 16
+    },
+    {
+      "type": "color",
+      "id": "question_color",
+      "label": "Question color",
+      "default": "#333333"
+    },
+    {
+      "type": "color",
+      "id": "hover_color",
+      "label": "Question hover color",
+      "default": "#007bff"
+    },
+    {
+      "type": "color",
+      "id": "icon_color",
+      "label": "Arrow color",
+      "default": "#333333"
+    },
+    {
+      "type": "range",
+      "id": "answer_size",
+      "label": "Answer size",
+      "min": 12,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "default": 14
+    },
+    {
+      "type": "color",
+      "id": "answer_color",
+      "label": "Answer color",
+      "default": "#666666"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Metafield FAQ"
+    }
+  ]
+}
+{% endschema %}

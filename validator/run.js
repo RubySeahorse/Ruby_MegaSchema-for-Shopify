@@ -1,0 +1,190 @@
+// MegaSchema validator: renders the theme's schema snippets with LiquidJS against sample Shopify
+// objects, then parses every JSON-LD block and checks @id references.
+//
+// Usage: node run.js <themeDir> <liquidjsPath> <outDir>
+// Without Node.js installed, VS Code's built-in runtime works the same way (see README.md).
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const [themeDir, liquidPath, outDir] = process.argv.slice(2).map((p) => path.resolve(p));
+const { Liquid, Tag } = require(liquidPath);
+fs.mkdirSync(outDir, { recursive: true });
+
+const engine = new Liquid({
+  root: ['snippets', 'sections', 'layout'].map((d) => path.join(themeDir, d)),
+  extname: '.liquid',
+  strictFilters: true,
+  jsTruthy: false,
+});
+
+// Shopify-only tags that do not affect the output: skip their contents.
+function ignoreBlock(name) {
+  engine.registerTag(name, class extends Tag {
+    constructor(token, remainTokens, liquid) {
+      super(token, remainTokens, liquid);
+      while (remainTokens.length) {
+        if (remainTokens.shift().name === 'end' + name) return;
+      }
+      throw new Error(`${name} not closed`);
+    }
+    *render() {}
+  });
+}
+['doc', 'schema', 'stylesheet', 'javascript', 'style'].forEach(ignoreBlock);
+
+// Shopify-only filters, mocked closely enough for structured data.
+engine.registerFilter('image_url', (img) => `//www.example-store.com/cdn/shop/${img && typeof img === 'object' ? img.src : img}?width=1200`);
+engine.registerFilter('money_without_currency', (cents) => (Number(cents) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+engine.registerFilter('handleize', (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
+engine.registerFilter('md5', (v) => crypto.createHash('md5').update(String(v)).digest('hex'));
+engine.registerFilter('metafield_tag', (v) => String(v));
+
+// Theme setting defaults from config/settings_schema.json (tolerates trailing commas), then test overrides
+// so that every branch of the snippets is exercised.
+const schemaText = fs.readFileSync(path.join(themeDir, 'config/settings_schema.json'), 'utf8').replace(/,(\s*[\]}])/g, '$1');
+const settings = {};
+for (const group of JSON.parse(schemaText)) {
+  for (const s of group.settings || []) if (s.id && 'default' in s) settings[s.id] = s.default;
+}
+const TEST_SETTINGS = {
+  schema_org_description: 'Example Outdoor Co. makes covers and cushions for outdoor living.',
+  schema_founding_date: '1990',
+  schema_phone: '+1-555-010-0000',
+  schema_email: 'support@example-store.com',
+  schema_street: '100 Example Way, Suite 1',
+  schema_city: 'Seattle',
+  schema_region: 'WA',
+  schema_postal_code: '98101',
+  schema_brands: 'Example Outdoor Co., Trailhead',
+  schema_return_fee: 25,
+  schema_restocking_fee: 10,
+  schema_final_sale_tags: 'final-sale',
+  schema_breadcrumb_exclude: 'frontpage, sale',
+};
+if (process.env.MEGASCHEMA_DEFAULTS_ONLY !== '1') Object.assign(settings, TEST_SETTINGS);
+
+// Sample store data. Edit to match the store being tested.
+const site = 'https://www.example-store.com';
+const shop = {
+  url: site,
+  name: 'Example Outdoor Co.',
+  description: 'Covers and cushions for outdoor living.',
+  brand: {
+    logo: { src: 'files/logo.png', width: 1200, height: 400 },
+    short_description: '',
+    metafields: { social_links: { facebook: { value: 'https://www.facebook.com/example' }, instagram: { value: 'https://www.instagram.com/example' } } },
+  },
+};
+const collections = { trailhead: { url: '/collections/trailhead', title: 'Trailhead', handle: 'trailhead' } };
+
+const productGroup = {
+  id: 1001, title: 'Weatherproof "Pro" Grill Cover', handle: 'grill-cover', url: '/products/grill-cover',
+  vendor: 'Example Outdoor Co.', type: 'Grill Cover', tags: ['grill', 'sale'], has_only_default_variant: false,
+  description: '<p>Protects your grill.</p>', published_at: '2026-03-01T10:00:00-07:00', category: { name: 'Grill Covers' },
+  featured_image: { src: 'files/grill.jpg' }, images: [{ src: 'files/grill.jpg' }, { src: 'files/grill-2.jpg' }],
+  options_with_values: [{ name: 'Color' }, { name: 'Size' }],
+  variants: [
+    { id: 11, title: 'Tan / 38" W', url: '/products/grill-cover?variant=11', sku: 'GC-38-TAN', barcode: '012345678905', price: 6095, compare_at_price: 6772, available: true, options: ['Tan', '38" W'], featured_image: { src: 'files/tan.jpg' } },
+    { id: 12, title: 'Gray / 58" W', url: '/products/grill-cover?variant=12', sku: 'GC-58-GRY', barcode: '01234567890', price: 129999, compare_at_price: 129999, available: false, options: ['Gray', '58" W'], featured_image: null },
+  ],
+  collections: [{ handle: 'frontpage', title: 'Home page', url: '/collections/frontpage' }, { handle: 'sale', title: 'Sale', url: '/collections/sale' }, { handle: 'grill-covers', title: 'Grill Covers', url: '/collections/grill-covers' }],
+  media: [{ media_type: 'video', alt: 'How to fit the cover', sources: [{ format: 'm3u8', url: 'https://x/v.m3u8' }, { format: 'mp4', url: 'https://cdn.example/v.mp4' }], preview_image: { src: 'files/video.jpg' } }],
+  metafields: {
+    global: { description_tag: { value: 'A weatherproof grill cover with vents and straps.' } },
+    custom: { product_brand: { value: 'Summit Line' }, grill_type: { value: 'Kamado' }, pdp_faq_title: { value: 'FAQs' }, pdp_faq_question_1: { value: 'Is it "waterproof"?' }, pdp_faq_answer_1: { value: 'Yes, with taped seams.' }, pdp_faq_question_2: { value: 'A question with no answer' } },
+    'shopify--discovery--product_recommendation': { complementary_products: { value: [{ title: 'Grill Brush', url: '/products/grill-brush' }] }, related_products: { value: [] } },
+    reviews: {},
+  },
+};
+const productSingle = {
+  id: 1002, title: 'Trailhead Loveseat Cover', handle: 'loveseat-cover', url: '/products/loveseat-cover',
+  vendor: 'Trailhead', type: 'Furniture Cover', tags: ['final-sale'], has_only_default_variant: true,
+  description: '<p>Tough & waterproof.</p>', published_at: '2025-05-01T10:00:00-07:00', category: null,
+  featured_image: { src: 'files/loveseat.jpg' }, images: [{ src: 'files/loveseat.jpg' }], options_with_values: [{ name: 'Title' }],
+  variants: [{ id: 21, title: 'Default Title', url: '/products/loveseat-cover?variant=21', sku: 'TH-LOVE', barcode: '0012345678905', price: 8999, compare_at_price: null, available: true, options: ['Default Title'], featured_image: null }],
+  collections: [], media: [{ media_type: 'external_video', host: 'youtube', external_id: 'abc123', alt: '', preview_image: { src: 'files/yt.jpg' } }],
+  metafields: { global: {}, custom: {}, reviews: { rating: { value: { rating: '4.6', scale_max: '5' } }, rating_count: { value: 23 } } },
+};
+const collection = {
+  title: 'Grill Covers', handle: 'grill-covers', url: '/collections/grill-covers', products_count: 42,
+  description: '<p>Covers for every grill & smoker.</p>', image: { src: 'files/collection.jpg' },
+  products: [productGroup, productSingle],
+  metafields: { custom: { plp_faq_title: { value: 'Frequently asked questions' }, plp_faq_question_1: { value: 'Which size fits my grill?' }, plp_faq_answer_1: { value: 'Measure width, depth and height.' } } },
+};
+const articles = [
+  { title: 'Winterizing Your Patio', url: '/blogs/journal/winterizing', author: 'Example Outdoor Co.', image: { src: 'files/winter.jpg' }, published_at: '2025-09-10T11:30:00-06:00', updated_at: '2026-06-05T11:53:44-06:00', excerpt: '', content: '<p>Cover "everything" before the first frost.</p>' },
+  { title: 'Outdoor Living Ideas', url: '/blogs/journal/ideas', author: 'Jordan Lee', image: null, published_at: '2026-03-26T07:00:00-06:00', updated_at: '2026-08-11T10:35:54-06:00', excerpt: '<p>Ideas for your space.</p>', content: '' },
+];
+const blog = { title: 'Journal', url: '/blogs/journal', articles };
+
+const base = { shop, settings, collections, cart: { currency: { iso_code: 'USD' } }, routes: { search_url: '/search' } };
+const scenarios = [
+  { name: 'home', page_type: 'index', canonical_url: site + '/', page_title: 'Example Outdoor Co.' },
+  { name: 'product-group', page_type: 'product', canonical_url: site + '/products/grill-cover', page_title: 'Grill Cover', product: productGroup, section: 'metafield-faq' },
+  { name: 'product-group-in-collection', page_type: 'product', canonical_url: site + '/products/grill-cover', page_title: 'Grill Cover', product: productGroup, collection: { title: 'Grill Covers', url: '/collections/grill-covers', handle: 'grill-covers' } },
+  { name: 'product-single-final-sale', page_type: 'product', canonical_url: site + '/products/loveseat-cover', page_title: 'Loveseat Cover', page_description: 'A "tough" cover', product: productSingle, section: 'metafield-faq' },
+  { name: 'collection', page_type: 'collection', canonical_url: site + '/collections/grill-covers', page_title: 'Grill Covers', collection, section: 'metafield-faq' },
+  { name: 'blog', page_type: 'blog', canonical_url: site + '/blogs/journal', page_title: 'Journal', blog },
+  { name: 'article', page_type: 'article', canonical_url: site + '/blogs/journal/winterizing', page_title: 'Winterizing Your Patio', blog, article: articles[0] },
+  { name: 'article-person', page_type: 'article', canonical_url: site + '/blogs/journal/ideas', page_title: 'Outdoor Living Ideas', blog, article: articles[1] },
+  { name: 'page-about', page_type: 'page', canonical_url: site + '/pages/about-us', page_title: 'About Us', page: { title: 'About Us', handle: 'about-us', template_suffix: '' } },
+  { name: 'page-contact', page_type: 'page', canonical_url: site + '/pages/contact', page_title: 'Contact', page: { title: 'Contact', handle: 'contact', template_suffix: 'contact' } },
+  { name: 'page-other', page_type: 'page', canonical_url: site + '/pages/warranty', page_title: 'Warranty', page: { title: 'Warranty', handle: 'warranty', template_suffix: '' } },
+  { name: 'search', page_type: 'search', canonical_url: site + '/search', page_title: 'Search' },
+  { name: '404', page_type: '404', canonical_url: site + '/404', page_title: 'Page not found' },
+];
+const FAQ_SECTION_SETTINGS = { output_schema: true, default_title: 'Frequently asked questions', color_scheme: { id: 'scheme-1', settings: {} }, max_width: 800, padding: 20, shadow: 4, heading_alignment: 'center', heading_size: 20, heading_color: '#333333', question_size: 16, question_color: '#333333', answer_size: 14, answer_color: '#666666', hover_color: '#007bff', icon_color: '#333333', border_color: '#dddddd' };
+
+function extractBlocks(html) {
+  const out = [];
+  const re = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/g;
+  let m;
+  while ((m = re.exec(html))) out.push(m[1]);
+  return out;
+}
+function walk(node, fn) {
+  if (Array.isArray(node)) node.forEach((n) => walk(n, fn));
+  else if (node && typeof node === 'object') { fn(node); Object.values(node).forEach((v) => walk(v, fn)); }
+}
+
+(async () => {
+  let failures = 0;
+  for (const sc of scenarios) {
+    const ctx = { ...base, ...sc, request: { page_type: sc.page_type, locale: { iso_code: 'en' }, design_mode: false }, page_description: sc.page_description || '' };
+    const problems = [];
+    let html = '';
+    try {
+      html = await engine.renderFile('mega-schema', ctx, { globals: ctx });
+      if (sc.section) {
+        const sectionCtx = { ...ctx, section: { settings: FAQ_SECTION_SETTINGS } };
+        html += await engine.renderFile(sc.section, sectionCtx, { globals: sectionCtx });
+      }
+    } catch (e) {
+      problems.push('RENDER ERROR: ' + e.message);
+    }
+    const blocks = extractBlocks(html);
+    const ids = new Set();
+    const refs = [];
+    const types = [];
+    blocks.forEach((b, i) => {
+      let json;
+      try { json = JSON.parse(b); } catch (e) { problems.push(`JSON block ${i + 1} invalid: ${e.message}`); fs.writeFileSync(path.join(outDir, `${sc.name}.block${i + 1}.bad.txt`), b); return; }
+      fs.writeFileSync(path.join(outDir, `${sc.name}.block${i + 1}.json`), JSON.stringify(json, null, 2));
+      const top = json['@graph'] || [json];
+      top.forEach((n) => types.push(n['@type']));
+      walk(json, (n) => {
+        if (n['@id'] && Object.keys(n).length > 1) {
+          if (ids.has(n['@id']) && top.includes(n)) problems.push('duplicate node @id ' + n['@id']);
+          ids.add(n['@id']);
+        } else if (n['@id']) refs.push(n['@id']);
+      });
+    });
+    refs.forEach((r) => { if (!ids.has(r)) problems.push('unresolved reference ' + r); });
+    if (!blocks.length && !problems.length) problems.push('no JSON-LD output');
+    if (problems.length) failures++;
+    console.log(`${problems.length ? 'FAIL' : 'PASS'}  ${sc.name.padEnd(28)} blocks=${blocks.length} nodes: ${types.join(', ')}`);
+    problems.forEach((p) => console.log('      - ' + p));
+  }
+  console.log(failures ? `\n${failures} scenario(s) failed` : '\nAll scenarios passed');
+  process.exitCode = failures ? 1 : 0;
+})();
