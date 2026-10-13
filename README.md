@@ -66,5 +66,5 @@ standard Liquid objects only, so they work on other themes once the theme's own 
 
 ## Credits
 
-Built by Ruby Robinson with Claude Code. LiquidJS is copyright 2016-2026 harttle, released under the MIT
+Built by Ruby Robinson. LiquidJS is copyright 2016-2026 harttle, released under the MIT
 License.
