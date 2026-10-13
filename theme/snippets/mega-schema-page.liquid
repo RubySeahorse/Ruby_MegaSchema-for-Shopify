@@ -25,10 +25,7 @@
       assign about_id = org_id
     when 'product'
       assign page_type = 'ItemPage'
-      assign main_entity_id = site_url | append: product.url | append: '#product'
-      if product.has_only_default_variant == false
-        assign main_entity_id = site_url | append: product.url | append: '#productgroup'
-      endif
+      assign main_entity_id = site_url | append: product.url
       assign page_image = product.featured_image
     when 'collection'
       assign page_type = 'CollectionPage'

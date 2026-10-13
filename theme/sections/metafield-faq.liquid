@@ -94,11 +94,7 @@
         "name": {{ faq_title | json }},
         "isPartOf": {"@id": {{ canonical_url | split: '?' | first | append: '#webpage' | json }}},
         {%- if request.page_type == 'product' -%}
-          {%- if product.has_only_default_variant or product.variants.size == 1 -%}
-            "about": {"@id": {{ shop.url | append: product.url | append: '#product' | json }}},
-          {%- else -%}
-            "about": {"@id": {{ shop.url | append: product.url | append: '#productgroup' | json }}},
-          {%- endif -%}
+          "about": {"@id": {{ shop.url | append: product.url | json }}},
         {%- else -%}
           "about": {"@id": {{ canonical_url | split: '?' | first | append: '#webpage' | json }}},
         {%- endif -%}

@@ -6,7 +6,8 @@ data, then checks that:
 - every snippet renders without a Liquid error,
 - every JSON-LD block is valid JSON,
 - no node `@id` appears twice in a graph,
-- every `@id` reference points to a node on the same page.
+- every `@id` reference points to a node on the same page,
+- a review-app style block (only an `@id` and a rating, as Bazaarvoice injects) merges into the product node.
 
 It first tokenizes every Liquid file the way Shopify does, flagging output tags that Shopify would reject. It
 then covers 13 page scenarios: home, multi-variant product (with and without collection context), single-variant

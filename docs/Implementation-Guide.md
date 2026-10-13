@@ -213,7 +213,7 @@ government and health sites. Use the Schema Markup Validator to confirm the FAQP
 | Shipping details | `{site}/#shipping_policy` |
 | Brand | `{site}/#brand-{brand handle}` |
 | Page node / BreadcrumbList | `{page}#webpage` / `{page}#breadcrumb` |
-| Product / ProductGroup | `{site}{product URL}#product` / `#productgroup` |
+| Product or ProductGroup | `{site}{product URL}` with no fragment. Review apps such as Bazaarvoice attach their rating and review JSON-LD to this exact `@id`. |
 | Variant | `{site}{variant URL}#variant` |
 | Collection list / Blog / Article / FAQ | `{page}#itemlist` / `#blog` / `#article` / `#faq` |
 
@@ -362,6 +362,8 @@ pairs render as the visible accordion.
 
 - One source per entity. Every page should have exactly one Organization, WebSite, page node, BreadcrumbList
   and product entity. Remove theme and app output that duplicates them.
+- The product `@id` is the bare product URL. Review apps inject blocks with only an `@id` and their ratings, and
+  those merge into the product only when the `@id`s match exactly.
 - Stable, absolute `@id`s. Keep the patterns in this guide so search engines see the same entities across
   pages and over time.
 - Markup matches the page. FAQ markup comes from the same data as the visible accordion, and product names
@@ -384,6 +386,7 @@ pairs render as the visible accordion.
 | Validator: invalid JSON, unexpected comma | A conditional property left a trailing or doubled comma | Open the `.bad.txt` file in `out/`, find the comma, and adjust the condition that writes it |
 | Validator: unresolved reference | A node points to an `@id` that is not on that page | Output the node on that page or describe it inline with its properties |
 | Shopify reports "Could not find asset snippets/..." for a file that is in the repository | Shopify refused to sync the file because of a Liquid syntax error, often a `}` inside a string in `{{ ... }}` | Run the validator; its shopify-tokenizer check names the file and line |
+| Rich Results Test shows no rating although review stars display on the page | The review app's JSON-LD `@id` does not match the product `@id` | Use the bare product URL as the product `@id`; the validator's merge check covers this |
 | Validator: undefined filter | A Shopify-only filter is not mocked in `run.js` | Add a `registerFilter` line for it in `run.js`; it is not a theme error |
 | Two Product or BreadcrumbList entries on the live page | Theme or app schema still active | Search the theme for `ld+json` and `structured_data`; turn off app embeds |
 | Merchant listings warning on return policy | Settings do not match the policy page | Compare each setting with the official policy text |

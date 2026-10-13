@@ -4,6 +4,8 @@
   Offers reference the return and shipping nodes from snippets/mega-schema-site.liquid. Products tagged
   with a final-sale tag from theme settings reference the final-sale return policy instead.
   The node is preceded by a comma; snippets/mega-schema.liquid removes the leading one.
+  The product's @id is the bare product URL, because review apps such as Bazaarvoice attach their
+  aggregateRating and review JSON-LD to the node with that exact @id.
 
   @param {string} site_url - The store's primary URL without a trailing slash
 {%- enddoc -%}
@@ -20,11 +22,7 @@
   if product.has_only_default_variant or product.variants.size == 1
     assign is_group = false
   endif
-  if is_group
-    assign product_id = product_url | append: '#productgroup'
-  else
-    assign product_id = product_url | append: '#product'
-  endif
+  assign product_id = product_url
 
   assign return_ref = site_url | append: '/#return_policy'
   assign final_sale_tags = settings.schema_final_sale_tags | split: ','

@@ -188,8 +188,14 @@ function shopifyTokenizerProblems() {
     } catch (e) {
       problems.push('RENDER ERROR: ' + e.message);
     }
+    if (sc.product) {
+      // Review apps such as Bazaarvoice inject an untyped block that merges into the product by @id.
+      html += `<script type="application/ld+json">{"@context":"https://schema.org/","@id":${JSON.stringify(site + sc.product.url)},"aggregateRating":{"@type":"AggregateRating","ratingValue":"4.8","reviewCount":12,"bestRating":5}}</script>`;
+    }
     const blocks = extractBlocks(html);
     const ids = new Set();
+    const typedIds = new Set();
+    const untyped = [];
     const refs = [];
     const types = [];
     blocks.forEach((b, i) => {
@@ -208,12 +214,16 @@ function shopifyTokenizerProblems() {
           if (typeof value === 'string' && /&(amp|quot|nbsp|#39|lt|gt);/.test(value)) problems.push(`HTML entity left in ${type || 'node'}.${key}: ${value.slice(0, 60)}`);
         }
         if (n['@id'] && Object.keys(n).length > 1) {
-          if (ids.has(n['@id']) && top.includes(n)) problems.push('duplicate node @id ' + n['@id']);
+          if (type && top.includes(n)) {
+            if (typedIds.has(n['@id'])) problems.push('duplicate node @id ' + n['@id']);
+            typedIds.add(n['@id']);
+          } else if (!type && top.includes(n)) untyped.push(n['@id']);
           ids.add(n['@id']);
         } else if (n['@id']) refs.push(n['@id']);
       });
     });
     refs.forEach((r) => { if (!ids.has(r)) problems.push('unresolved reference ' + r); });
+    untyped.forEach((u) => { if (!typedIds.has(u)) problems.push(`untyped block ${u} does not merge into a typed node (review app ratings would be lost)`); });
     if (!blocks.length && !problems.length) problems.push('no JSON-LD output');
     if (problems.length) failures++;
     console.log(`${problems.length ? 'FAIL' : 'PASS'}  ${sc.name.padEnd(28)} blocks=${blocks.length} nodes: ${types.join(', ')}`);
