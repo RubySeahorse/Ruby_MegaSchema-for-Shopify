@@ -101,7 +101,7 @@
   "url": {{ page_url | json }},
   "name": {{ page_title | strip | json }},
   {%- if page_description != blank -%}
-    "description": {{ page_description | strip | json }},
+    "description": {{ page_description | replace: '&amp;', '&' | replace: '&quot;', '"' | replace: '&#39;', "'" | strip | json }},
   {%- endif -%}
   {%- if page_image != blank -%}
     "primaryImageOfPage": {

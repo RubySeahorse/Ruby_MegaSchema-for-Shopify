@@ -47,9 +47,9 @@
     endif
   endfor
 
-  assign product_description = product.metafields.global.description_tag.value | strip
+  assign product_description = product.description | newline_to_br | replace: '<', ' <' | strip_html | strip_newlines | replace: '&amp;', '&' | replace: '&nbsp;', ' ' | replace: '&quot;', '"' | replace: '&#39;', "'" | split: ' ' | join: ' ' | strip | truncate: 5000
   if product_description == blank
-    assign product_description = product.description | strip_html | strip | truncate: 500
+    assign product_description = product.metafields.global.description_tag.value | strip
   endif
 
   assign product_category = product.category.name
@@ -199,6 +199,9 @@
         "@type": "Product",
         "@id": {{ variant_url | append: '#variant' | json }},
         "name": {{ product.title | append: ' - ' | append: variant.title | json }},
+        {%- if product_description != blank -%}
+          "description": {{ product_description | json }},
+        {%- endif -%}
         {{- variant_identity -}}
         {%- if variant_image -%}
           "image": {{ variant_image | image_url: width: 1200 | prepend: 'https:' | json }},

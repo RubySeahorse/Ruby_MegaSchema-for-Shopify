@@ -80,7 +80,7 @@ const collections = { trailhead: { url: '/collections/trailhead', title: 'Trailh
 const productGroup = {
   id: 1001, title: 'Weatherproof "Pro" Grill Cover', handle: 'grill-cover', url: '/products/grill-cover',
   vendor: 'Example Outdoor Co.', type: 'Grill Cover', tags: ['grill', 'sale'], has_only_default_variant: false,
-  description: '<p>Protects your grill.</p>', published_at: '2026-03-01T10:00:00-07:00', category: { name: 'Grill Covers' },
+  description: '<p>Protects your grill &amp; smoker.</p>\n<ul><li>Vented sides</li><li>Click-close straps</li></ul>', published_at: '2026-03-01T10:00:00-07:00', category: { name: 'Grill Covers' },
   featured_image: { src: 'files/grill.jpg' }, images: [{ src: 'files/grill.jpg' }, { src: 'files/grill-2.jpg' }],
   options_with_values: [{ name: 'Color' }, { name: 'Size' }],
   variants: [
@@ -122,7 +122,7 @@ const scenarios = [
   { name: 'home', page_type: 'index', canonical_url: site + '/', page_title: 'Example Outdoor Co.' },
   { name: 'product-group', page_type: 'product', canonical_url: site + '/products/grill-cover', page_title: 'Grill Cover', product: productGroup, section: 'metafield-faq' },
   { name: 'product-group-in-collection', page_type: 'product', canonical_url: site + '/products/grill-cover', page_title: 'Grill Cover', product: productGroup, collection: { title: 'Grill Covers', url: '/collections/grill-covers', handle: 'grill-covers' } },
-  { name: 'product-single-final-sale', page_type: 'product', canonical_url: site + '/products/loveseat-cover', page_title: 'Loveseat Cover', page_description: 'A "tough" cover', product: productSingle, section: 'metafield-faq' },
+  { name: 'product-single-final-sale', page_type: 'product', canonical_url: site + '/products/loveseat-cover', page_title: 'Loveseat Cover', page_description: 'A &quot;tough&quot; cover &amp; more', product: productSingle, section: 'metafield-faq' },
   { name: 'collection', page_type: 'collection', canonical_url: site + '/collections/grill-covers', page_title: 'Grill Covers', collection, section: 'metafield-faq' },
   { name: 'blog', page_type: 'blog', canonical_url: site + '/blogs/journal', page_title: 'Journal', blog },
   { name: 'article', page_type: 'article', canonical_url: site + '/blogs/journal/winterizing', page_title: 'Winterizing Your Patio', blog, article: articles[0] },
@@ -199,6 +199,14 @@ function shopifyTokenizerProblems() {
       const top = json['@graph'] || [json];
       top.forEach((n) => types.push(n['@type']));
       walk(json, (n) => {
+        const type = n['@type'];
+        if ((type === 'Product' || type === 'ProductGroup') && n['@id']) {
+          for (const field of ['name', 'description']) if (!n[field]) problems.push(`${type} missing ${field}: ${n['@id']}`);
+          if (type === 'Product' && !n.offers) problems.push(`Product missing offers: ${n['@id']}`);
+        }
+        for (const [key, value] of Object.entries(n)) {
+          if (typeof value === 'string' && /&(amp|quot|nbsp|#39|lt|gt);/.test(value)) problems.push(`HTML entity left in ${type || 'node'}.${key}: ${value.slice(0, 60)}`);
+        }
         if (n['@id'] && Object.keys(n).length > 1) {
           if (ids.has(n['@id']) && top.includes(n)) problems.push('duplicate node @id ' + n['@id']);
           ids.add(n['@id']);

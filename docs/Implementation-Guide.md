@@ -309,7 +309,7 @@ Organization when the author is the store name, otherwise a Person), publisher, 
 | --- | --- |
 | `@type` | ProductGroup when the product has more than one variant, otherwise Product |
 | name, url | `product.title`, product URL |
-| description | SEO description, falling back to the product description as plain text (500 characters) |
+| description | Product description as plain text (HTML removed, entities decoded, up to 5,000 characters), falling back to the SEO description. Repeated on every variant, because Google checks each variant as its own Product. |
 | image | Up to 10 product images at 1,200 px |
 | brand | Reference to the Brand node for `product.vendor` |
 | manufacturer | Reference to the Organization |
@@ -324,7 +324,7 @@ Organization when the author is the store name, otherwise a Person), publisher, 
 
 | Property | Source |
 | --- | --- |
-| name | Product title, a dash and the variant title |
+| name, description | Product title, a dash and the variant title; the product description |
 | sku, mpn | `variant.sku` |
 | gtin8, gtin12, gtin13 or gtin14 | `variant.barcode`, chosen by digit count; other lengths are skipped |
 | color, size | Mapped option values |
