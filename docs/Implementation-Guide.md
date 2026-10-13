@@ -366,6 +366,8 @@ pairs render as the visible accordion.
   pages and over time.
 - Markup matches the page. FAQ markup comes from the same data as the visible accordion, and product names
   match the on-page title rather than the SEO title.
+- Never put a `}` inside a quoted string in an output tag (`{{ ... }}`). Shopify ends the tag at that brace and
+  refuses to save the file. Build such strings with `assign` first, then output the variable.
 - Every text value goes through the `json` filter, so quotes, ampersands and line breaks cannot break the
   JSON.
 - Business facts live in theme settings, never in code.
@@ -381,6 +383,7 @@ pairs render as the visible accordion.
 | --- | --- | --- |
 | Validator: invalid JSON, unexpected comma | A conditional property left a trailing or doubled comma | Open the `.bad.txt` file in `out/`, find the comma, and adjust the condition that writes it |
 | Validator: unresolved reference | A node points to an `@id` that is not on that page | Output the node on that page or describe it inline with its properties |
+| Shopify reports "Could not find asset snippets/..." for a file that is in the repository | Shopify refused to sync the file because of a Liquid syntax error, often a `}` inside a string in `{{ ... }}` | Run the validator; its shopify-tokenizer check names the file and line |
 | Validator: undefined filter | A Shopify-only filter is not mocked in `run.js` | Add a `registerFilter` line for it in `run.js`; it is not a theme error |
 | Two Product or BreadcrumbList entries on the live page | Theme or app schema still active | Search the theme for `ld+json` and `structured_data`; turn off app embeds |
 | Merchant listings warning on return policy | Settings do not match the policy page | Compare each setting with the official policy text |

@@ -8,7 +8,8 @@ data, then checks that:
 - no node `@id` appears twice in a graph,
 - every `@id` reference points to a node on the same page.
 
-It covers 13 page scenarios: home, multi-variant product (with and without collection context), single-variant
+It first tokenizes every Liquid file the way Shopify does, flagging output tags that Shopify would reject. It
+then covers 13 page scenarios: home, multi-variant product (with and without collection context), single-variant
 final-sale product, collection, blog, two articles, About, Contact, another page, search and 404. Rendered
 JSON-LD is written to the output folder for review.
 

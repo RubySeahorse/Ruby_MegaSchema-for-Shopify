@@ -147,8 +147,34 @@ function walk(node, fn) {
   else if (node && typeof node === 'object') { fn(node); Object.values(node).forEach((v) => walk(v, fn)); }
 }
 
+// Shopify's Liquid tokenizer ends an output tag at the first "}" (even inside a quoted string), and Shopify
+// refuses to save a file with an unterminated tag. LiquidJS is more forgiving, so check this separately.
+function shopifyTokenizerProblems() {
+  const problems = [];
+  for (const dir of ['snippets', 'sections', 'layout', 'blocks']) {
+    const full = path.join(themeDir, dir);
+    if (!fs.existsSync(full)) continue;
+    for (const file of fs.readdirSync(full).filter((f) => f.endsWith('.liquid'))) {
+      const text = fs.readFileSync(path.join(full, file), 'utf8');
+      const re = /\{%[\s\S]*?%\}|\{\{[\s\S]*?\}\}?/g;
+      let m;
+      while ((m = re.exec(text))) {
+        if (m[0].startsWith('{{') && !m[0].endsWith('}}')) {
+          const line = text.slice(0, m.index).split('\n').length;
+          problems.push(`${dir}/${file}:${line} output tag ends early at "}" (Shopify rejects the file): ${m[0].slice(0, 80)}`);
+        }
+      }
+    }
+  }
+  return problems;
+}
+
 (async () => {
   let failures = 0;
+  const tokenizerProblems = shopifyTokenizerProblems();
+  console.log(`${tokenizerProblems.length ? 'FAIL' : 'PASS'}  ${'shopify-tokenizer'.padEnd(28)} every {{ }} tag closes the way Shopify parses it`);
+  tokenizerProblems.forEach((p) => console.log('      - ' + p));
+  if (tokenizerProblems.length) failures++;
   for (const sc of scenarios) {
     const ctx = { ...base, ...sc, request: { page_type: sc.page_type, locale: { iso_code: 'en' }, design_mode: false }, page_description: sc.page_description || '' };
     const problems = [];

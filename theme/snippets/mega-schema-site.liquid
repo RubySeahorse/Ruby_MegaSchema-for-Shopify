@@ -13,6 +13,7 @@
   assign return_id = site_url | append: '/#return_policy'
   assign return_final_id = site_url | append: '/#return_policy_final_sale'
   assign shipping_id = site_url | append: '/#shipping_policy'
+  assign search_url_template = site_url | append: routes.search_url | append: '?q={search_term_string}'
   assign schema_currency = cart.currency.iso_code
   assign schema_country = settings.schema_country | default: 'US'
   assign return_link = settings.schema_return_policy_url | default: '/policies/refund-policy'
@@ -131,7 +132,7 @@
     "@type": "SearchAction",
     "target": {
       "@type": "EntryPoint",
-      "urlTemplate": {{ site_url | append: routes.search_url | append: '?q={search_term_string}' | json }}
+      "urlTemplate": {{ search_url_template | json }}
     },
     "query-input": "required name=search_term_string"
   }
