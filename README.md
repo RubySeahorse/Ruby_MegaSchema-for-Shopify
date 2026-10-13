@@ -68,3 +68,7 @@ standard Liquid objects only, so they work on other themes once the theme's own 
 
 Built by Ruby Robinson. Code written with assistance via Claude Code in VSCode environment. LiquidJS is copyright 2016-2026 harttle, released under the MIT
 License.
+
+## License
+
+Released under the MIT License. See [LICENSE](LICENSE).

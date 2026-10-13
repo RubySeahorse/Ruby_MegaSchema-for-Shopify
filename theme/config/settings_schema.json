@@ -95,7 +95,7 @@
         "type": "text",
         "id": "schema_brands",
         "label": "Brands",
-        "info": "Comma-separated. Each becomes a Brand entity linked to the company. Product vendors are added on their product pages."
+        "info": "Comma-separated brands this company owns and makes. Products from these brands (or with the shop name as vendor) list the company as manufacturer. Other vendors get a Brand entity on their product pages only."
       },
       {
         "type": "header",

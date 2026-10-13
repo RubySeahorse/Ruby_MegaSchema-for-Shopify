@@ -137,7 +137,7 @@ values so a fresh install is correct before anyone opens the editor.
 | Street, City, State, Postal code | `schema_street`, `schema_city`, `schema_region`, `schema_postal_code` | Headquarters address exactly as on the Contact page | 100 Example Way, Suite 1 / Seattle / WA / 98101 |
 | Country code | `schema_country` | Two letters; also used for policy countries | US |
 | Extra profile URLs | `schema_same_as` | One URL per line for profiles not in Settings > Brand (Amazon, Wikipedia) | Blank |
-| Brands | `schema_brands` | Comma-separated brand names; product vendors are added automatically on their pages | Example Outdoor Co., Trailhead |
+| Brands | `schema_brands` | Comma-separated brands the company owns and makes. These products list the company as manufacturer; other vendors get a Brand entity on their own product pages only | Example Outdoor Co., Trailhead |
 | Shipping rate | `schema_shipping_rate` | Standard shipping cost; 0 for free | 0 |
 | Handling and transit days | `schema_handling_min`, `schema_handling_max`, `schema_transit_min`, `schema_transit_max` | Business days from order to shipment, and in transit | 1 to 3, 3 to 5 |
 | Return window | `schema_return_days` | Days allowed for returns | 30 |
@@ -231,7 +231,7 @@ government and health sites. Use the Schema Markup Validator to confirm the FAQP
 | address (PostalAddress) | `schema_street`, `schema_city`, `schema_region`, `schema_postal_code`, `schema_country` |
 | contactPoint (ContactPoint) | contactType "customer service", telephone, email, areaServed, availableLanguage |
 | sameAs | Brand social links, theme social settings and `schema_same_as`, without duplicates |
-| brand | References to each Brand node |
+| brand | References to the brands in `schema_brands` only, never to resold vendors |
 | hasMerchantReturnPolicy | Reference to the return policy node |
 
 ### WebSite (every page)
@@ -312,7 +312,7 @@ Organization when the author is the store name, otherwise a Person), publisher, 
 | description | Product description as plain text (HTML removed, entities decoded, up to 5,000 characters), falling back to the SEO description. Repeated on every variant, because Google checks each variant as its own Product. |
 | image | Up to 10 product images at 1,200 px |
 | brand | Reference to the Brand node for `product.vendor` |
-| manufacturer | Reference to the Organization |
+| manufacturer | Reference to the Organization, only when the vendor is the shop name or a brand in `schema_brands`; products resold from other companies get no manufacturer |
 | category | Shopify Standard Product Taxonomy category, falling back to product type |
 | additionalProperty | PropertyValue entries from product-line and attribute metafields, plus Product type |
 | isRelatedTo / isSimilarTo | Up to 4 Search & Discovery complementary / related products |
@@ -326,7 +326,7 @@ Organization when the author is the store name, otherwise a Person), publisher, 
 | --- | --- |
 | name, description | Product title, a dash and the variant title; the product description |
 | sku, mpn | `variant.sku` |
-| gtin8, gtin12, gtin13 or gtin14 | `variant.barcode`, chosen by digit count; other lengths are skipped |
+| gtin8, gtin12, gtin13 or gtin14 | `variant.barcode`, only when it is 8, 12, 13 or 14 digits with a valid GS1 check digit; anything else is omitted |
 | color, size | Mapped option values |
 | image | Variant image, falling back to the product image |
 | inProductGroupWithID | Product ID |
@@ -376,7 +376,10 @@ pairs render as the visible accordion.
 - Policies state exactly what the official policy says. Confirm shipping times and fees with operations.
 - Strikethrough prices only for genuine former prices.
 - Prices are plain numbers with no currency symbol or thousands separator.
-- Barcodes are labeled by length, and invalid lengths are omitted rather than guessed.
+- Barcodes are output only when they pass the GS1 check (digits only, a GTIN length and a correct check digit).
+  Invalid barcodes are omitted rather than guessed.
+- Manufacturer and company brands are claimed only for brands the company owns (`schema_brands`). A store that
+  resells other companies' products must not name itself as their manufacturer.
 - Test single-variant, multi-variant and final-sale products every time the product snippet changes.
 
 ## Troubleshooting

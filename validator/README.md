@@ -7,11 +7,16 @@ data, then checks that:
 - every JSON-LD block is valid JSON,
 - no node `@id` appears twice in a graph,
 - every `@id` reference points to a node on the same page,
-- a review-app style block (only an `@id` and a rating, as Bazaarvoice injects) merges into the product node.
+- a review-app style block (only an `@id` and a rating, as Bazaarvoice injects) merges into the product node,
+- every GTIN is digits only, the right length and has a valid GS1 check digit (sample data includes invalid
+  barcodes that must be omitted),
+- products from owned brands name the company as manufacturer, and a resold product (vendor not in
+  `schema_brands`) gets no manufacturer and is not claimed in the company's brand list.
 
 It first tokenizes every Liquid file the way Shopify does, flagging output tags that Shopify would reject. It
-then covers 13 page scenarios: home, multi-variant product (with and without collection context), single-variant
-final-sale product, collection, blog, two articles, About, Contact, another page, search and 404. Rendered
+then covers 14 page scenarios: home, multi-variant product (with and without collection context), single-variant
+final-sale product, a product resold from another vendor, collection, blog, two articles, About, Contact, another
+page, search and 404. Rendered
 JSON-LD is written to the output folder for review.
 
 ## Run with Node.js

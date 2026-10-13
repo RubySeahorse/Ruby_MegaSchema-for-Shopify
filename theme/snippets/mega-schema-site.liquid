@@ -53,6 +53,7 @@
       assign brand_names = brand_names | append: clean_brand | append: '|'
     endif
   endfor
+  assign owned_brand_list = brand_names | split: '|' | uniq
   if request.page_type == 'product' and product.vendor != blank
     assign brand_names = brand_names | append: product.vendor | append: '|'
   endif
@@ -107,9 +108,9 @@
   {%- if same_as_list.size > 0 -%}
     "sameAs": {{ same_as_list | json }},
   {%- endif -%}
-  {%- if brand_list.size > 0 -%}
+  {%- if owned_brand_list.size > 0 -%}
     "brand": [
-      {%- for brand_name in brand_list -%}
+      {%- for brand_name in owned_brand_list -%}
         {%- assign brand_handle = brand_name | handleize -%}
         {"@id": {{ site_url | append: '/#brand-' | append: brand_handle | json }}}{%- unless forloop.last -%},{%- endunless -%}
       {%- endfor -%}

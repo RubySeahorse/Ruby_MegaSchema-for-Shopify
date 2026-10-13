@@ -6,6 +6,9 @@
   The node is preceded by a comma; snippets/mega-schema.liquid removes the leading one.
   The product's @id is the bare product URL, because review apps such as Bazaarvoice attach their
   aggregateRating and review JSON-LD to the node with that exact @id.
+  The company is named as manufacturer only when the vendor is the shop name or one of the brands in
+  the "Brands" theme setting, so resold products from other companies do not claim it. Barcodes are
+  output as GTINs only when they are 8, 12, 13 or 14 digits with a valid GS1 check digit.
 
   @param {string} site_url - The store's primary URL without a trailing slash
 {%- enddoc -%}
@@ -17,6 +20,20 @@
   assign schema_currency = cart.currency.iso_code
   assign vendor_handle = product.vendor | handleize
   assign brand_id = site_url | append: '/#brand-' | append: vendor_handle
+
+  assign vendor_key = product.vendor | strip | downcase
+  assign is_own_brand = false
+  assign shop_key = shop.name | strip | downcase
+  if vendor_key != blank and vendor_key == shop_key
+    assign is_own_brand = true
+  endif
+  assign owned_brands = settings.schema_brands | split: ','
+  for owned_brand in owned_brands
+    assign owned_key = owned_brand | strip | downcase
+    if owned_key != blank and owned_key == vendor_key
+      assign is_own_brand = true
+    endif
+  endfor
 
   assign is_group = true
   if product.has_only_default_variant or product.variants.size == 1
@@ -153,6 +170,27 @@
       assign variant_url = site_url | append: variant.url
       assign barcode = variant.barcode | strip | remove: ' ' | remove: '-'
       assign barcode_size = barcode | size
+      assign gtin_valid = false
+      if barcode_size == 8 or barcode_size == 12 or barcode_size == 13 or barcode_size == 14
+        assign non_digits = barcode | remove: '0' | remove: '1' | remove: '2' | remove: '3' | remove: '4' | remove: '5' | remove: '6' | remove: '7' | remove: '8' | remove: '9'
+        if non_digits == ''
+          assign gtin_sum = 0
+          assign data_last = barcode_size | minus: 2
+          for digit_index in (0..data_last)
+            assign gtin_digit = barcode | slice: digit_index | plus: 0
+            assign weight_test = data_last | minus: digit_index | modulo: 2
+            if weight_test == 0
+              assign gtin_digit = gtin_digit | times: 3
+            endif
+            assign gtin_sum = gtin_sum | plus: gtin_digit
+          endfor
+          assign expected_check = gtin_sum | modulo: 10 | times: -1 | plus: 10 | modulo: 10
+          assign actual_check = barcode | slice: -1 | plus: 0
+          if expected_check == actual_check
+            assign gtin_valid = true
+          endif
+        endif
+      endif
       assign variant_image = variant.featured_image | default: product.featured_image
       assign variant_price = variant.price | money_without_currency | remove: ','
     -%}
@@ -161,7 +199,7 @@
         "sku": {{ variant.sku | json }},
         "mpn": {{ variant.sku | json }},
       {%- endif -%}
-      {%- if barcode_size == 8 or barcode_size == 12 or barcode_size == 13 or barcode_size == 14 -%}
+      {%- if gtin_valid -%}
         "gtin{{ barcode_size }}": {{ barcode | json }},
       {%- endif -%}
       {%- if color_index >= 0 -%}
@@ -232,7 +270,9 @@
   {%- if product.vendor != blank -%}
     "brand": {"@id": {{ brand_id | json }}},
   {%- endif -%}
-  "manufacturer": {"@id": {{ org_id | json }}},
+  {%- if is_own_brand -%}
+    "manufacturer": {"@id": {{ org_id | json }}},
+  {%- endif -%}
   {%- if product_category != blank -%}
     "category": {{ product_category | json }},
   {%- endif -%}

@@ -86,6 +86,8 @@ const productGroup = {
   variants: [
     { id: 11, title: 'Tan / 38" W', url: '/products/grill-cover?variant=11', sku: 'GC-38-TAN', barcode: '012345678905', price: 6095, compare_at_price: 6772, available: true, options: ['Tan', '38" W'], featured_image: { src: 'files/tan.jpg' } },
     { id: 12, title: 'Gray / 58" W', url: '/products/grill-cover?variant=12', sku: 'GC-58-GRY', barcode: '01234567890', price: 129999, compare_at_price: 129999, available: false, options: ['Gray', '58" W'], featured_image: null },
+    { id: 13, title: 'Black / 38" W', url: '/products/grill-cover?variant=13', sku: 'GC-38-BLK', barcode: 'ABCDEFGHIJKL', price: 6095, compare_at_price: null, available: true, options: ['Black', '38" W'], featured_image: null },
+    { id: 14, title: 'Black / 58" W', url: '/products/grill-cover?variant=14', sku: 'GC-58-BLK', barcode: '012345678906', price: 8095, compare_at_price: null, available: true, options: ['Black', '58" W'], featured_image: null },
   ],
   collections: [{ handle: 'frontpage', title: 'Home page', url: '/collections/frontpage' }, { handle: 'sale', title: 'Sale', url: '/collections/sale' }, { handle: 'grill-covers', title: 'Grill Covers', url: '/collections/grill-covers' }],
   media: [{ media_type: 'video', alt: 'How to fit the cover', sources: [{ format: 'm3u8', url: 'https://x/v.m3u8' }, { format: 'mp4', url: 'https://cdn.example/v.mp4' }], preview_image: { src: 'files/video.jpg' } }],
@@ -105,6 +107,11 @@ const productSingle = {
   collections: [], media: [{ media_type: 'external_video', host: 'youtube', external_id: 'abc123', alt: '', preview_image: { src: 'files/yt.jpg' } }],
   metafields: { global: {}, custom: {}, reviews: { rating: { value: { rating: '4.6', scale_max: '5' } }, rating_count: { value: 23 } } },
 };
+const productResold = {
+  ...productSingle, id: 1003, title: 'Other Maker Patio Umbrella', handle: 'patio-umbrella', url: '/products/patio-umbrella',
+  vendor: 'Other Maker Co.', tags: [], metafields: { global: {}, custom: {}, reviews: {} },
+  variants: [{ id: 31, title: 'Default Title', url: '/products/patio-umbrella?variant=31', sku: 'OM-UMB', barcode: '96385074', price: 12999, compare_at_price: null, available: true, options: ['Default Title'], featured_image: null }],
+};
 const collection = {
   title: 'Grill Covers', handle: 'grill-covers', url: '/collections/grill-covers', products_count: 42,
   description: '<p>Covers for every grill & smoker.</p>', image: { src: 'files/collection.jpg' },
@@ -120,9 +127,10 @@ const blog = { title: 'Journal', url: '/blogs/journal', articles };
 const base = { shop, settings, collections, cart: { currency: { iso_code: 'USD' } }, routes: { search_url: '/search' } };
 const scenarios = [
   { name: 'home', page_type: 'index', canonical_url: site + '/', page_title: 'Example Outdoor Co.' },
-  { name: 'product-group', page_type: 'product', canonical_url: site + '/products/grill-cover', page_title: 'Grill Cover', product: productGroup, section: 'metafield-faq' },
+  { name: 'product-group', page_type: 'product', canonical_url: site + '/products/grill-cover', page_title: 'Grill Cover', product: productGroup, section: 'metafield-faq', expect: { manufacturer: true, gtins: 1 } },
   { name: 'product-group-in-collection', page_type: 'product', canonical_url: site + '/products/grill-cover', page_title: 'Grill Cover', product: productGroup, collection: { title: 'Grill Covers', url: '/collections/grill-covers', handle: 'grill-covers' } },
-  { name: 'product-single-final-sale', page_type: 'product', canonical_url: site + '/products/loveseat-cover', page_title: 'Loveseat Cover', page_description: 'A &quot;tough&quot; cover &amp; more', product: productSingle, section: 'metafield-faq' },
+  { name: 'product-single-final-sale', page_type: 'product', canonical_url: site + '/products/loveseat-cover', page_title: 'Loveseat Cover', page_description: 'A &quot;tough&quot; cover &amp; more', product: productSingle, section: 'metafield-faq', expect: { manufacturer: true, gtins: 1 } },
+  { name: 'product-resold-other-vendor', page_type: 'product', canonical_url: site + '/products/patio-umbrella', page_title: 'Patio Umbrella', product: productResold, expect: { manufacturer: false, gtins: 1, orgBrandExcludes: site + '/#brand-other-maker-co' } },
   { name: 'collection', page_type: 'collection', canonical_url: site + '/collections/grill-covers', page_title: 'Grill Covers', collection, section: 'metafield-faq' },
   { name: 'blog', page_type: 'blog', canonical_url: site + '/blogs/journal', page_title: 'Journal', blog },
   { name: 'article', page_type: 'article', canonical_url: site + '/blogs/journal/winterizing', page_title: 'Winterizing Your Patio', blog, article: articles[0] },
@@ -141,6 +149,14 @@ function extractBlocks(html) {
   let m;
   while ((m = re.exec(html))) out.push(m[1]);
   return out;
+}
+// GS1 check: digits only, a GTIN length, and a correct check digit.
+function isValidGtin(value) {
+  if (!/^\d+$/.test(value) || ![8, 12, 13, 14].includes(value.length)) return false;
+  const data = value.slice(0, -1);
+  let sum = 0;
+  for (let i = 0; i < data.length; i++) sum += Number(data[i]) * ((data.length - 1 - i) % 2 === 0 ? 3 : 1);
+  return (10 - (sum % 10)) % 10 === Number(value.slice(-1));
 }
 function walk(node, fn) {
   if (Array.isArray(node)) node.forEach((n) => walk(n, fn));
@@ -198,6 +214,9 @@ function shopifyTokenizerProblems() {
     const untyped = [];
     const refs = [];
     const types = [];
+    let gtinCount = 0;
+    let productNode = null;
+    let orgNode = null;
     blocks.forEach((b, i) => {
       let json;
       try { json = JSON.parse(b); } catch (e) { problems.push(`JSON block ${i + 1} invalid: ${e.message}`); fs.writeFileSync(path.join(outDir, `${sc.name}.block${i + 1}.bad.txt`), b); return; }
@@ -212,7 +231,14 @@ function shopifyTokenizerProblems() {
         }
         for (const [key, value] of Object.entries(n)) {
           if (typeof value === 'string' && /&(amp|quot|nbsp|#39|lt|gt);/.test(value)) problems.push(`HTML entity left in ${type || 'node'}.${key}: ${value.slice(0, 60)}`);
+          const gtinKey = key.match(/^gtin(8|12|13|14)?$/);
+          if (gtinKey) {
+            gtinCount++;
+            if (!isValidGtin(String(value)) || (gtinKey[1] && String(value).length !== Number(gtinKey[1]))) problems.push(`invalid ${key} "${value}" on ${n['@id'] || type}`);
+          }
         }
+        if ((type === 'Product' || type === 'ProductGroup') && n['@id'] && sc.product && n['@id'] === site + sc.product.url) productNode = n;
+        if (type === 'Organization' && top.includes(n)) orgNode = n;
         if (n['@id'] && Object.keys(n).length > 1) {
           if (type && top.includes(n)) {
             if (typedIds.has(n['@id'])) problems.push('duplicate node @id ' + n['@id']);
@@ -224,6 +250,14 @@ function shopifyTokenizerProblems() {
     });
     refs.forEach((r) => { if (!ids.has(r)) problems.push('unresolved reference ' + r); });
     untyped.forEach((u) => { if (!typedIds.has(u)) problems.push(`untyped block ${u} does not merge into a typed node (review app ratings would be lost)`); });
+    // Expectations depend on TEST_SETTINGS (owned brands), so they are skipped in defaults-only mode.
+    const expect = process.env.MEGASCHEMA_DEFAULTS_ONLY === '1' ? {} : sc.expect || {};
+    if ('manufacturer' in expect && productNode) {
+      const hasManufacturer = Boolean(productNode.manufacturer);
+      if (hasManufacturer !== expect.manufacturer) problems.push(`manufacturer ${hasManufacturer ? 'present' : 'missing'}; expected ${expect.manufacturer ? 'the company' : 'none'} for vendor "${sc.product.vendor}"`);
+    }
+    if ('gtins' in expect && gtinCount !== expect.gtins) problems.push(`expected ${expect.gtins} valid GTIN(s), found ${gtinCount}`);
+    if (expect.orgBrandExcludes && orgNode && (orgNode.brand || []).some((b) => b['@id'] === expect.orgBrandExcludes)) problems.push(`Organization.brand claims ${expect.orgBrandExcludes}, a brand the company does not own`);
     if (!blocks.length && !problems.length) problems.push('no JSON-LD output');
     if (problems.length) failures++;
     console.log(`${problems.length ? 'FAIL' : 'PASS'}  ${sc.name.padEnd(28)} blocks=${blocks.length} nodes: ${types.join(', ')}`);
