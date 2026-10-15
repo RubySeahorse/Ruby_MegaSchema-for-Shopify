@@ -75,7 +75,22 @@ const shop = {
     metafields: { social_links: { facebook: { value: 'https://www.facebook.com/example' }, instagram: { value: 'https://www.instagram.com/example' } } },
   },
 };
-const collections = { trailhead: { url: '/collections/trailhead', title: 'Trailhead', handle: 'trailhead' } };
+// Collection hierarchy: Outdoor Covers lists Seating Covers in custom.subcollections; Chair Covers names
+// Seating Covers in custom.parent_collection. Loop A and Loop B point at each other to test loop handling.
+const makeCollection = (handle, title) => ({ handle, title, url: `/collections/${handle}`, metafields: { custom: {} } });
+const trailhead = makeCollection('trailhead', 'Trailhead');
+const outdoorCovers = makeCollection('outdoor-covers', 'Outdoor Covers');
+const seatingCovers = makeCollection('seating-covers', 'Seating Covers');
+const chairCovers = makeCollection('chair-covers', 'Chair Covers');
+const loopA = makeCollection('loop-a', 'Loop A');
+const loopB = makeCollection('loop-b', 'Loop B');
+outdoorCovers.metafields.custom.subcollections = { value: [seatingCovers] };
+chairCovers.metafields.custom.parent_collection = { value: seatingCovers };
+loopA.metafields.custom.parent_collection = { value: loopB };
+loopB.metafields.custom.parent_collection = { value: loopA };
+const collectionList = [trailhead, outdoorCovers, seatingCovers, chairCovers, loopA, loopB];
+// Shopify's collections object is both iterable and addressable by handle.
+const collections = Object.assign(collectionList, Object.fromEntries(collectionList.map((c) => [c.handle, c])));
 
 const productGroup = {
   id: 1001, title: 'Weatherproof "Pro" Grill Cover', handle: 'grill-cover', url: '/products/grill-cover',
@@ -107,6 +122,12 @@ const productSingle = {
   collections: [], media: [{ media_type: 'external_video', host: 'youtube', external_id: 'abc123', alt: '', preview_image: { src: 'files/yt.jpg' } }],
   metafields: { global: {}, custom: {}, reviews: { rating: { value: { rating: '4.6', scale_max: '5' } }, rating_count: { value: 23 } } },
 };
+const productHierarchy = {
+  ...productSingle, id: 1004, title: 'Chair Cover Deluxe', handle: 'chair-cover', url: '/products/chair-cover',
+  vendor: 'Example Outdoor Co.', tags: [], metafields: { global: {}, custom: {}, reviews: {} },
+  collections: [{ handle: 'sale', title: 'Sale', url: '/collections/sale' }, outdoorCovers, chairCovers],
+  variants: [{ id: 41, title: 'Default Title', url: '/products/chair-cover?variant=41', sku: 'CC-DLX', barcode: '96385074', price: 4999, compare_at_price: null, available: true, options: ['Default Title'], featured_image: null }],
+};
 const productResold = {
   ...productSingle, id: 1003, title: 'Other Maker Patio Umbrella', handle: 'patio-umbrella', url: '/products/patio-umbrella',
   vendor: 'Other Maker Co.', tags: [], metafields: { global: {}, custom: {}, reviews: {} },
@@ -131,7 +152,11 @@ const scenarios = [
   { name: 'product-group-in-collection', page_type: 'product', canonical_url: site + '/products/grill-cover', page_title: 'Grill Cover', product: productGroup, collection: { title: 'Grill Covers', url: '/collections/grill-covers', handle: 'grill-covers' } },
   { name: 'product-single-final-sale', page_type: 'product', canonical_url: site + '/products/loveseat-cover', page_title: 'Loveseat Cover', page_description: 'A &quot;tough&quot; cover &amp; more', product: productSingle, section: 'metafield-faq', expect: { manufacturer: true, gtins: 1 } },
   { name: 'product-resold-other-vendor', page_type: 'product', canonical_url: site + '/products/patio-umbrella', page_title: 'Patio Umbrella', product: productResold, expect: { manufacturer: false, gtins: 1, orgBrandExcludes: site + '/#brand-other-maker-co' } },
-  { name: 'collection', page_type: 'collection', canonical_url: site + '/collections/grill-covers', page_title: 'Grill &amp; Smoker Covers', collection, section: 'metafield-faq' },
+  { name: 'product-hierarchy-5-levels', page_type: 'product', canonical_url: site + '/products/chair-cover', page_title: 'Chair Cover Deluxe', product: productHierarchy, expect: { crumbs: ['Home', 'Outdoor Covers', 'Seating Covers', 'Chair Covers', 'Chair Cover Deluxe'] } },
+  { name: 'product-hierarchy-depth-3', page_type: 'product', canonical_url: site + '/products/chair-cover', page_title: 'Chair Cover Deluxe', product: productHierarchy, settings: { schema_breadcrumb_max_depth: 3 }, expect: { crumbs: ['Home', 'Chair Covers', 'Chair Cover Deluxe'] } },
+  { name: 'collection', page_type: 'collection', canonical_url: site + '/collections/grill-covers', page_title: 'Grill &amp; Smoker Covers', collection, section: 'metafield-faq', expect: { crumbs: ['Home', 'Grill Covers'] } },
+  { name: 'collection-hierarchy-4-levels', page_type: 'collection', canonical_url: site + '/collections/chair-covers', page_title: 'Chair Covers', collection: { ...collection, ...chairCovers }, expect: { crumbs: ['Home', 'Outdoor Covers', 'Seating Covers', 'Chair Covers'] } },
+  { name: 'collection-hierarchy-loop', page_type: 'collection', canonical_url: site + '/collections/loop-a', page_title: 'Loop A', collection: { ...collection, ...loopA }, expect: { crumbs: ['Home', 'Loop B', 'Loop A'] } },
   { name: 'blog', page_type: 'blog', canonical_url: site + '/blogs/journal', page_title: 'Journal', blog },
   { name: 'article', page_type: 'article', canonical_url: site + '/blogs/journal/winterizing', page_title: 'Winterizing Your Patio', blog, article: articles[0] },
   { name: 'article-person', page_type: 'article', canonical_url: site + '/blogs/journal/ideas', page_title: 'Outdoor Living Ideas', blog, article: articles[1] },
@@ -192,7 +217,7 @@ function shopifyTokenizerProblems() {
   tokenizerProblems.forEach((p) => console.log('      - ' + p));
   if (tokenizerProblems.length) failures++;
   for (const sc of scenarios) {
-    const ctx = { ...base, ...sc, request: { page_type: sc.page_type, locale: { iso_code: 'en' }, design_mode: false }, page_description: sc.page_description || '' };
+    const ctx = { ...base, ...sc, settings: { ...settings, ...(sc.settings || {}) }, request: { page_type: sc.page_type, locale: { iso_code: 'en' }, design_mode: false }, page_description: sc.page_description || '' };
     const problems = [];
     let html = '';
     try {
@@ -259,6 +284,11 @@ function shopifyTokenizerProblems() {
       if (hasManufacturer !== expect.manufacturer) problems.push(`manufacturer ${hasManufacturer ? 'present' : 'missing'}; expected ${expect.manufacturer ? 'the company' : 'none'} for vendor "${sc.product.vendor}"`);
     }
     if ('gtins' in expect && gtinCount !== expect.gtins) problems.push(`expected ${expect.gtins} valid GTIN(s), found ${gtinCount}`);
+    if (expect.crumbs) {
+      let crumbNames = null;
+      blocks.forEach((b) => { try { const j = JSON.parse(b); (j['@graph'] || [j]).forEach((n) => { if (n['@type'] === 'BreadcrumbList') crumbNames = n.itemListElement.map((i) => i.name); }); } catch {} });
+      if (JSON.stringify(crumbNames) !== JSON.stringify(expect.crumbs)) problems.push(`breadcrumb ${JSON.stringify(crumbNames)}; expected ${JSON.stringify(expect.crumbs)}`);
+    }
     if (expect.orgBrandExcludes && orgNode && (orgNode.brand || []).some((b) => b['@id'] === expect.orgBrandExcludes)) problems.push(`Organization.brand claims ${expect.orgBrandExcludes}, a brand the company does not own`);
     if (!blocks.length && !problems.length) problems.push('no JSON-LD output');
     if (problems.length) failures++;

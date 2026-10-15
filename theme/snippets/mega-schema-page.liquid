@@ -2,6 +2,11 @@
   Outputs the page-level JSON-LD nodes for the MegaSchema @graph: the page node (WebPage, ItemPage,
   CollectionPage, AboutPage, ContactPage or SearchResultsPage), its BreadcrumbList, and the collection
   ItemList, Blog or BlogPosting when the page has one.
+  Product and collection breadcrumbs follow the store's collection hierarchy, up to the depth in the
+  "Breadcrumb depth" setting (Home counts as one level). A collection's parent is its
+  custom.parent_collection metafield, or else the collection whose custom.subcollections list includes it.
+  On product pages without collection context, a collection that has a parent is preferred, so the
+  trail is as specific as possible. Loops in the hierarchy stop the walk.
   Each node is preceded by a comma; snippets/mega-schema.liquid removes the leading one.
 
   @param {string} site_url - The store's primary URL without a trailing slash
@@ -53,27 +58,63 @@
   assign crumb_names = ''
   assign crumb_urls = ''
   if has_breadcrumb
+    assign max_depth = settings.schema_breadcrumb_max_depth | default: 5
+    assign parent_map = '|'
+    if request.page_type == 'product' or request.page_type == 'collection'
+      if settings.schema_breadcrumb_use_subcollections
+        for map_collection in collections
+          assign map_children = map_collection.metafields.custom.subcollections.value
+          for map_child in map_children
+            assign parent_map = parent_map | append: map_child.handle | append: '>' | append: map_collection.handle | append: '|'
+          endfor
+        endfor
+      endif
+    endif
+
+    assign chain_start = ''
+    assign leaf_name = ''
+    assign leaf_url = ''
+    assign ancestor_limit = 0
+
     case request.page_type
       when 'product'
         assign crumb_collection = collection
         if crumb_collection == blank
           assign excluded_handles = settings.schema_breadcrumb_exclude | remove: ' ' | split: ','
+          assign fallback_collection = ''
           for product_collection in product.collections
-            unless excluded_handles contains product_collection.handle
+            if excluded_handles contains product_collection.handle
+              continue
+            endif
+            if fallback_collection == ''
+              assign fallback_collection = product_collection
+            endif
+            assign has_parent = false
+            if product_collection.metafields.custom.parent_collection.value != blank
+              assign has_parent = true
+            endif
+            assign map_key = '|' | append: product_collection.handle | append: '>'
+            if parent_map contains map_key
+              assign has_parent = true
+            endif
+            if has_parent
               assign crumb_collection = product_collection
               break
-            endunless
+            endif
           endfor
+          if crumb_collection == blank and fallback_collection != ''
+            assign crumb_collection = fallback_collection
+          endif
         endif
         if crumb_collection != blank
-          assign crumb_names = crumb_names | append: crumb_collection.title | append: '|~|'
-          assign crumb_urls = crumb_urls | append: site_url | append: crumb_collection.url | append: '|~|'
+          assign chain_start = crumb_collection
         endif
-        assign crumb_names = crumb_names | append: product.title
-        assign crumb_urls = crumb_urls | append: site_url | append: product.url
+        assign leaf_name = product.title
+        assign leaf_url = site_url | append: product.url
+        assign ancestor_limit = max_depth | minus: 3
       when 'collection'
-        assign crumb_names = collection.title
-        assign crumb_urls = page_url
+        assign chain_start = collection
+        assign ancestor_limit = max_depth | minus: 2
       when 'blog'
         assign crumb_names = blog.title
         assign crumb_urls = page_url
@@ -87,6 +128,44 @@
         assign crumb_names = page_title
         assign crumb_urls = page_url
     endcase
+
+    if chain_start != blank and chain_start != ''
+      assign crumb_names = chain_start.title
+      assign crumb_urls = site_url | append: chain_start.url
+      assign visited = '|' | append: chain_start.handle | append: '|'
+      assign current_collection = chain_start
+      if ancestor_limit > 0
+        for step in (1..ancestor_limit)
+          assign parent_collection = current_collection.metafields.custom.parent_collection.value
+          if parent_collection == blank
+            assign map_key = '|' | append: current_collection.handle | append: '>'
+            if parent_map contains map_key
+              assign parent_handle = parent_map | split: map_key | last | split: '|' | first
+              assign parent_collection = collections[parent_handle]
+            endif
+          endif
+          if parent_collection == blank
+            break
+          endif
+          assign visit_key = '|' | append: parent_collection.handle | append: '|'
+          if visited contains visit_key
+            break
+          endif
+          assign visited = visited | append: parent_collection.handle | append: '|'
+          assign crumb_names = parent_collection.title | append: '|~|' | append: crumb_names
+          assign crumb_urls = site_url | append: parent_collection.url | append: '|~|' | append: crumb_urls
+          assign current_collection = parent_collection
+        endfor
+      endif
+    endif
+    if leaf_name != ''
+      if crumb_names != ''
+        assign crumb_names = crumb_names | append: '|~|'
+        assign crumb_urls = crumb_urls | append: '|~|'
+      endif
+      assign crumb_names = crumb_names | append: leaf_name
+      assign crumb_urls = crumb_urls | append: leaf_url
+    endif
   endif
   assign crumb_name_list = crumb_names | split: '|~|'
   assign crumb_url_list = crumb_urls | split: '|~|'

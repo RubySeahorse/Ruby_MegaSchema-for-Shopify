@@ -10,12 +10,16 @@ data, then checks that:
 - a review-app style block (only an `@id` and a rating, as Bazaarvoice injects) merges into the product node,
 - every GTIN is digits only, the right length and has a valid GS1 check digit (sample data includes invalid
   barcodes that must be omitted),
+- breadcrumbs follow the collection hierarchy (`custom.parent_collection` and `custom.subcollections`), respect
+  the depth setting and stop at loops,
 - products from owned brands name the company as manufacturer, and a resold product (vendor not in
   `schema_brands`) gets no manufacturer and is not claimed in the company's brand list.
 
 It first tokenizes every Liquid file the way Shopify does, flagging output tags that Shopify would reject. It
-then covers 14 page scenarios: home, multi-variant product (with and without collection context), single-variant
-final-sale product, a product resold from another vendor, collection, blog, two articles, About, Contact, another
+then covers 18 page scenarios: home, multi-variant product (with and without collection context), single-variant
+final-sale product, a product resold from another vendor, a product in a 5-level collection hierarchy (and the
+same capped at 3 levels), collection, a collection in a hierarchy, a hierarchy with a loop, blog, two articles,
+About, Contact, another
 page, search and 404. Rendered
 JSON-LD is written to the output folder for review.
 
