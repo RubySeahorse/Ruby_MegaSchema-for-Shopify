@@ -68,13 +68,14 @@
   {%- if settings.schema_legal_name != blank -%}
     "legalName": {{ settings.schema_legal_name | json }},
   {%- endif -%}
-  {%- if shop.brand.logo -%}
-    {%- assign logo_url = shop.brand.logo | image_url: width: shop.brand.logo.width | prepend: 'https:' -%}
+  {%- assign schema_logo = settings.schema_logo | default: shop.brand.logo -%}
+  {%- if schema_logo -%}
+    {%- assign logo_url = schema_logo | image_url: width: schema_logo.width | prepend: 'https:' -%}
     "logo": {
       "@type": "ImageObject",
       "url": {{ logo_url | json }},
-      "width": {{ shop.brand.logo.width }},
-      "height": {{ shop.brand.logo.height }}
+      "width": {{ schema_logo.width }},
+      "height": {{ schema_logo.height }}
     },
     "image": {{ logo_url | json }},
   {%- endif -%}

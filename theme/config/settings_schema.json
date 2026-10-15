@@ -38,6 +38,12 @@
         "info": "Leave blank to omit."
       },
       {
+        "type": "image_picker",
+        "id": "schema_logo",
+        "label": "Logo for search engines",
+        "info": "At least 112 x 112 px, on a white or transparent background. Falls back to the logo in Settings > Brand."
+      },
+      {
         "type": "textarea",
         "id": "schema_org_description",
         "label": "Company description"

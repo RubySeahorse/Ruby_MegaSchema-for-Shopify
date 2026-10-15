@@ -130,6 +130,7 @@ values so a fresh install is correct before anyone opens the editor.
 | --- | --- | --- | --- |
 | Schema source | `schema_source` | MegaSchema, Legacy (rollback) or Off | MegaSchema |
 | Legal name | `schema_legal_name` | Registered company name; blank to omit | Example Outdoor Co., Inc. |
+| Logo for search engines | `schema_logo` | Logo image, at least 112 x 112 px; falls back to Settings > Brand. Without either, the Organization has no logo. | The store logo file |
 | Company description | `schema_org_description` | Two to four factual sentences about the company. No promotions. | The About page summary |
 | Founding date | `schema_founding_date` | Year or ISO date | 1990 |
 | Customer service phone | `schema_phone` | International format | +1-555-010-0000 |
@@ -149,7 +150,8 @@ values so a fresh install is correct before anyone opens the editor.
 | Breadcrumb exclusions | `schema_breadcrumb_exclude` | Collection handles never used as a product's breadcrumb parent | frontpage, sale, best-sellers |
 
 Social profiles come from Settings > Brand in the Shopify admin and from the theme's Social media settings.
-The logo comes from Settings > Brand.
+The logo comes from the `schema_logo` setting, or else Settings > Brand. Check that one of them is set: an empty Brand
+logo is common, and the Organization then has no logo.
 
 ## Step 7: Place the FAQ section
 
@@ -225,7 +227,7 @@ government and health sites. Use the Schema Markup Validator to confirm the FAQP
 | --- | --- |
 | name, url | `shop.name`, `shop.url` |
 | legalName | `schema_legal_name`, when filled |
-| logo (ImageObject with url, width, height), image | Settings > Brand logo |
+| logo (ImageObject with url, width, height), image | `schema_logo` theme setting, falling back to the Settings > Brand logo |
 | description | `schema_org_description`, falling back to the Brand short description |
 | foundingDate | `schema_founding_date` |
 | address (PostalAddress) | `schema_street`, `schema_city`, `schema_region`, `schema_postal_code`, `schema_country` |

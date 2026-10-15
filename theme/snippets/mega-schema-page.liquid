@@ -96,7 +96,7 @@
   "@type": {{ page_type | json }},
   "@id": {{ webpage_id | json }},
   "url": {{ page_url | json }},
-  "name": {{ page_title | strip | json }},
+  "name": {{ page_title | replace: '&amp;', '&' | replace: '&quot;', '"' | replace: '&#39;', "'" | strip | json }},
   {%- if page_description != blank -%}
     "description": {{ page_description | replace: '&amp;', '&' | replace: '&quot;', '"' | replace: '&#39;', "'" | strip | json }},
   {%- endif -%}
@@ -198,9 +198,9 @@
 
 {%- if request.page_type == 'article' -%}
   {%- liquid
-    assign article_description = article.excerpt | strip_html | strip
+    assign article_description = article.excerpt | newline_to_br | replace: '<', ' <' | strip_html | strip_newlines | replace: '&amp;', '&' | replace: '&nbsp;', ' ' | replace: '&quot;', '"' | replace: '&#39;', "'" | split: ' ' | join: ' ' | strip
     if article_description == blank
-      assign article_description = article.content | strip_html | strip | truncate: 300
+      assign article_description = article.content | newline_to_br | replace: '<', ' <' | strip_html | strip_newlines | replace: '&amp;', '&' | replace: '&nbsp;', ' ' | replace: '&quot;', '"' | replace: '&#39;', "'" | split: ' ' | join: ' ' | strip | truncate: 300
     endif
   -%}
   ,{

@@ -119,7 +119,7 @@ const collection = {
   metafields: { custom: { plp_faq_title: { value: 'Frequently asked questions' }, plp_faq_question_1: { value: 'Which size fits my grill?' }, plp_faq_answer_1: { value: 'Measure width, depth and height.' } } },
 };
 const articles = [
-  { title: 'Winterizing Your Patio', url: '/blogs/journal/winterizing', author: 'Example Outdoor Co.', image: { src: 'files/winter.jpg' }, published_at: '2025-09-10T11:30:00-06:00', updated_at: '2026-06-05T11:53:44-06:00', excerpt: '', content: '<p>Cover "everything" before the first frost.</p>' },
+  { title: 'Winterizing Your Patio', url: '/blogs/journal/winterizing', author: 'Example Outdoor Co.', image: { src: 'files/winter.jpg' }, published_at: '2025-09-10T11:30:00-06:00', updated_at: '2026-06-05T11:53:44-06:00', excerpt: '', content: '<p>Cover "everything"</p>\n\n<p>before the first frost.</p>' },
   { title: 'Outdoor Living Ideas', url: '/blogs/journal/ideas', author: 'Jordan Lee', image: null, published_at: '2026-03-26T07:00:00-06:00', updated_at: '2026-08-11T10:35:54-06:00', excerpt: '<p>Ideas for your space.</p>', content: '' },
 ];
 const blog = { title: 'Journal', url: '/blogs/journal', articles };
@@ -131,7 +131,7 @@ const scenarios = [
   { name: 'product-group-in-collection', page_type: 'product', canonical_url: site + '/products/grill-cover', page_title: 'Grill Cover', product: productGroup, collection: { title: 'Grill Covers', url: '/collections/grill-covers', handle: 'grill-covers' } },
   { name: 'product-single-final-sale', page_type: 'product', canonical_url: site + '/products/loveseat-cover', page_title: 'Loveseat Cover', page_description: 'A &quot;tough&quot; cover &amp; more', product: productSingle, section: 'metafield-faq', expect: { manufacturer: true, gtins: 1 } },
   { name: 'product-resold-other-vendor', page_type: 'product', canonical_url: site + '/products/patio-umbrella', page_title: 'Patio Umbrella', product: productResold, expect: { manufacturer: false, gtins: 1, orgBrandExcludes: site + '/#brand-other-maker-co' } },
-  { name: 'collection', page_type: 'collection', canonical_url: site + '/collections/grill-covers', page_title: 'Grill Covers', collection, section: 'metafield-faq' },
+  { name: 'collection', page_type: 'collection', canonical_url: site + '/collections/grill-covers', page_title: 'Grill &amp; Smoker Covers', collection, section: 'metafield-faq' },
   { name: 'blog', page_type: 'blog', canonical_url: site + '/blogs/journal', page_title: 'Journal', blog },
   { name: 'article', page_type: 'article', canonical_url: site + '/blogs/journal/winterizing', page_title: 'Winterizing Your Patio', blog, article: articles[0] },
   { name: 'article-person', page_type: 'article', canonical_url: site + '/blogs/journal/ideas', page_title: 'Outdoor Living Ideas', blog, article: articles[1] },
@@ -239,6 +239,7 @@ function shopifyTokenizerProblems() {
         }
         if ((type === 'Product' || type === 'ProductGroup') && n['@id'] && sc.product && n['@id'] === site + sc.product.url) productNode = n;
         if (type === 'Organization' && top.includes(n)) orgNode = n;
+        if (typeof n.description === 'string' && /\n/.test(n.description)) problems.push(`line breaks left in ${type || 'node'}.description: ${n.description.slice(0, 50)}`);
         if (n['@id'] && Object.keys(n).length > 1) {
           if (type && top.includes(n)) {
             if (typedIds.has(n['@id'])) problems.push('duplicate node @id ' + n['@id']);
@@ -251,6 +252,7 @@ function shopifyTokenizerProblems() {
     refs.forEach((r) => { if (!ids.has(r)) problems.push('unresolved reference ' + r); });
     untyped.forEach((u) => { if (!typedIds.has(u)) problems.push(`untyped block ${u} does not merge into a typed node (review app ratings would be lost)`); });
     // Expectations depend on TEST_SETTINGS (owned brands), so they are skipped in defaults-only mode.
+    if (orgNode && shop.brand.logo && !orgNode.logo) problems.push('Organization missing logo although a logo is available');
     const expect = process.env.MEGASCHEMA_DEFAULTS_ONLY === '1' ? {} : sc.expect || {};
     if ('manufacturer' in expect && productNode) {
       const hasManufacturer = Boolean(productNode.manufacturer);
