@@ -28,7 +28,7 @@ MegaSchema, the theme's previous schema and off, for rollback without a code cha
 theme/
   snippets/mega-schema.liquid          entry point, outputs the @graph
   snippets/mega-schema-site.liquid     Organization, WebSite, Brand, return and shipping policies
-  snippets/mega-schema-page.liquid     page node, BreadcrumbList, ItemList, Blog, BlogPosting
+  snippets/mega-schema-page.liquid     page node, BreadcrumbList (follows the collection hierarchy), ItemList, Blog, BlogPosting
   snippets/mega-schema-product.liquid  Product / ProductGroup, variants, offers
   sections/metafield-faq.liquid        FAQ accordion + FAQPage from pdp_faq_* / plp_faq_* metafields
   config/settings_schema.json          the Structured data settings group to append to a theme

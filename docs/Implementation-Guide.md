@@ -80,6 +80,21 @@ To bulk load with Matrixify, use column headers in the form
 `Metafield: custom.pdp_faq_question_1 [single_line_text_field]`. A question only appears when its answer is
 also filled, so partial rows never produce half an FAQ.
 
+### Optional: collection hierarchy for deeper breadcrumbs
+
+Breadcrumbs follow parent and child collections when the store records them, up to five levels
+(`Home › Department › Category › Subcategory › Product`). Use either metafield, or both; a collection's own
+`parent_collection` wins when both exist.
+
+| Owner | Namespace and key | Type | Purpose |
+| --- | --- | --- | --- |
+| Collection | `custom.parent_collection` | Collection reference | Set on a child collection, pointing to its parent |
+| Collection | `custom.subcollections` | List of collection references | Set on a parent collection, listing its children |
+
+Without either metafield, breadcrumbs stay at Home › collection › product. The subcollection lists are read by
+looping over the store's collections; on a store with a very large number of collections, prefer
+`custom.parent_collection`, which needs no loop.
+
 ## Step 4: Add the files and remove existing schema
 
 1. Copy the four `theme/snippets/mega-schema*.liquid` files into the theme's `snippets/` folder and
@@ -148,6 +163,8 @@ values so a fresh install is correct before anyone opens the editor.
 | Return policy URL | `schema_return_policy_url` | Path or full URL of the policy page | /policies/refund-policy |
 | Strikethrough prices | `schema_show_strikethrough` | On only when compare-at prices are genuine former prices | On |
 | Breadcrumb exclusions | `schema_breadcrumb_exclude` | Collection handles never used as a product's breadcrumb parent | frontpage, sale, best-sellers |
+| Breadcrumb depth | `schema_breadcrumb_max_depth` | Maximum levels, counting Home and the page (2 to 5) | 5 |
+| Find parents from subcollection lists | `schema_breadcrumb_use_subcollections` | On to read `custom.subcollections` lists as parent links | On |
 
 Social profiles come from Settings > Brand in the Shopify admin and from the theme's Social media settings.
 The logo comes from the `schema_logo` setting, or else Settings > Brand. Check that one of them is set: an empty Brand
@@ -288,9 +305,12 @@ page has an image, breadcrumb, inLanguage and isPartOf (WebSite).
 
 ### BreadcrumbList (every page except home, 404, cart and password)
 
-Starts with Home. Product: Home, collection, product, where the collection is the one in the URL or else the
-product's first collection not listed in `schema_breadcrumb_exclude`. Collection: Home, collection. Blog:
-Home, blog. Article: Home, blog, article. Other pages: Home, page.
+Starts with Home. Product: Home, the collection's ancestors, the collection, product. The collection is the one in
+the URL; otherwise the product's first collection that has a parent (so the trail is as specific as possible),
+or else its first collection, skipping those listed in `schema_breadcrumb_exclude`. Collection: Home, its
+ancestors, collection. Ancestors come from `custom.parent_collection` or `custom.subcollections` (Step 3), and
+the whole trail is capped at `schema_breadcrumb_max_depth` levels, counting Home and the page. A loop in the
+hierarchy ends the walk. Blog: Home, blog. Article: Home, blog, article. Other pages: Home, page.
 
 ### ItemList (collection pages)
 
