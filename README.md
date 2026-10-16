@@ -1,6 +1,6 @@
 # Ruby MegaSchema for Shopify
 
-Hi! Project goal: boost organic search via better product and whole-site schema with theme-owned structured data for Shopify stores. 
+Boost organic search via better product and whole-site schema with theme-owned structured data for Shopify stores. Goal: improved GEO & AEO.
 
 MegaSchema replaces scattered JSON-LD blocks with one connected
 `@graph` per page, in which the company, website, page, breadcrumb and main item reference each other by
