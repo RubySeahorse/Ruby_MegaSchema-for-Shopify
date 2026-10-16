@@ -57,7 +57,7 @@
     assign option_name = product_option.name | downcase | strip
     if option_name == 'color' or option_name == 'colour' or option_name == 'cover color'
       assign color_index = forloop.index0
-    elsif option_name == 'size'
+    elsif option_name contains 'size'
       assign size_index = forloop.index0
     endif
   endfor

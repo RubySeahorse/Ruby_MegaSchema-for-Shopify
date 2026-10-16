@@ -59,7 +59,7 @@ const TEST_SETTINGS = {
   schema_return_fee: 25,
   schema_restocking_fee: 10,
   schema_final_sale_tags: 'final-sale',
-  schema_breadcrumb_exclude: 'frontpage, sale',
+  schema_breadcrumb_exclude: 'frontpage, sale, clearance',
 };
 if (process.env.MEGASCHEMA_DEFAULTS_ONLY !== '1') Object.assign(settings, TEST_SETTINGS);
 
@@ -76,19 +76,25 @@ const shop = {
   },
 };
 // Collection hierarchy: Outdoor Covers lists Seating Covers in custom.subcollections; Chair Covers names
-// Seating Covers in custom.parent_collection. Loop A and Loop B point at each other to test loop handling.
+// Seating Covers in custom.parent_collection; Chair Cushions names it in custom.breadcrumb_parent_collection.
+// Clearance has a parent but is in the skip list, so it must never start a trail. Loop A and Loop B point at
+// each other to test loop handling.
 const makeCollection = (handle, title) => ({ handle, title, url: `/collections/${handle}`, metafields: { custom: {} } });
 const trailhead = makeCollection('trailhead', 'Trailhead');
 const outdoorCovers = makeCollection('outdoor-covers', 'Outdoor Covers');
 const seatingCovers = makeCollection('seating-covers', 'Seating Covers');
 const chairCovers = makeCollection('chair-covers', 'Chair Covers');
+const chairCushions = makeCollection('chair-cushions', 'Chair Cushions');
+const clearance = makeCollection('clearance', 'Clearance');
 const loopA = makeCollection('loop-a', 'Loop A');
 const loopB = makeCollection('loop-b', 'Loop B');
 outdoorCovers.metafields.custom.subcollections = { value: [seatingCovers] };
 chairCovers.metafields.custom.parent_collection = { value: seatingCovers };
+chairCushions.metafields.custom.breadcrumb_parent_collection = { value: seatingCovers };
+clearance.metafields.custom.breadcrumb_parent_collection = { value: seatingCovers };
 loopA.metafields.custom.parent_collection = { value: loopB };
 loopB.metafields.custom.parent_collection = { value: loopA };
-const collectionList = [trailhead, outdoorCovers, seatingCovers, chairCovers, loopA, loopB];
+const collectionList = [trailhead, outdoorCovers, seatingCovers, chairCovers, chairCushions, clearance, loopA, loopB];
 // Shopify's collections object is both iterable and addressable by handle.
 const collections = Object.assign(collectionList, Object.fromEntries(collectionList.map((c) => [c.handle, c])));
 
@@ -125,7 +131,7 @@ const productSingle = {
 const productHierarchy = {
   ...productSingle, id: 1004, title: 'Chair Cover Deluxe', handle: 'chair-cover', url: '/products/chair-cover',
   vendor: 'Example Outdoor Co.', tags: [], metafields: { global: {}, custom: {}, reviews: {} },
-  collections: [{ handle: 'sale', title: 'Sale', url: '/collections/sale' }, outdoorCovers, chairCovers],
+  collections: [clearance, { handle: 'sale', title: 'Sale', url: '/collections/sale' }, outdoorCovers, chairCovers],
   variants: [{ id: 41, title: 'Default Title', url: '/products/chair-cover?variant=41', sku: 'CC-DLX', barcode: '96385074', price: 4999, compare_at_price: null, available: true, options: ['Default Title'], featured_image: null }],
 };
 const productResold = {
@@ -156,6 +162,9 @@ const scenarios = [
   { name: 'product-hierarchy-depth-3', page_type: 'product', canonical_url: site + '/products/chair-cover', page_title: 'Chair Cover Deluxe', product: productHierarchy, settings: { schema_breadcrumb_max_depth: 3 }, expect: { crumbs: ['Home', 'Chair Covers', 'Chair Cover Deluxe'] } },
   { name: 'collection', page_type: 'collection', canonical_url: site + '/collections/grill-covers', page_title: 'Grill &amp; Smoker Covers', collection, section: 'metafield-faq', expect: { crumbs: ['Home', 'Grill Covers'] } },
   { name: 'collection-hierarchy-4-levels', page_type: 'collection', canonical_url: site + '/collections/chair-covers', page_title: 'Chair Covers', collection: { ...collection, ...chairCovers }, expect: { crumbs: ['Home', 'Outdoor Covers', 'Seating Covers', 'Chair Covers'] } },
+  { name: 'product-in-skipped-collection', page_type: 'product', canonical_url: site + '/products/chair-cover', page_title: 'Chair Cover Deluxe', product: productHierarchy, collection: clearance, expect: { crumbs: ['Home', 'Outdoor Covers', 'Seating Covers', 'Chair Covers', 'Chair Cover Deluxe'] } },
+  { name: 'collection-breadcrumb-parent', page_type: 'collection', canonical_url: site + '/collections/chair-cushions', page_title: 'Chair Cushions', collection: { ...collection, ...chairCushions }, expect: { crumbs: ['Home', 'Outdoor Covers', 'Seating Covers', 'Chair Cushions'] } },
+  { name: 'collection-skipped', page_type: 'collection', canonical_url: site + '/collections/clearance', page_title: 'Clearance', collection: { ...collection, ...clearance }, expect: { crumbs: null } },
   { name: 'collection-hierarchy-loop', page_type: 'collection', canonical_url: site + '/collections/loop-a', page_title: 'Loop A', collection: { ...collection, ...loopA }, expect: { crumbs: ['Home', 'Loop B', 'Loop A'] } },
   { name: 'blog', page_type: 'blog', canonical_url: site + '/blogs/journal', page_title: 'Journal', blog },
   { name: 'article', page_type: 'article', canonical_url: site + '/blogs/journal/winterizing', page_title: 'Winterizing Your Patio', blog, article: articles[0] },
@@ -284,7 +293,7 @@ function shopifyTokenizerProblems() {
       if (hasManufacturer !== expect.manufacturer) problems.push(`manufacturer ${hasManufacturer ? 'present' : 'missing'}; expected ${expect.manufacturer ? 'the company' : 'none'} for vendor "${sc.product.vendor}"`);
     }
     if ('gtins' in expect && gtinCount !== expect.gtins) problems.push(`expected ${expect.gtins} valid GTIN(s), found ${gtinCount}`);
-    if (expect.crumbs) {
+    if ('crumbs' in expect) {
       let crumbNames = null;
       blocks.forEach((b) => { try { const j = JSON.parse(b); (j['@graph'] || [j]).forEach((n) => { if (n['@type'] === 'BreadcrumbList') crumbNames = n.itemListElement.map((i) => i.name); }); } catch {} });
       if (JSON.stringify(crumbNames) !== JSON.stringify(expect.crumbs)) problems.push(`breadcrumb ${JSON.stringify(crumbNames)}; expected ${JSON.stringify(expect.crumbs)}`);

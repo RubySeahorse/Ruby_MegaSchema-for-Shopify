@@ -4,9 +4,12 @@
   ItemList, Blog or BlogPosting when the page has one.
   Product and collection breadcrumbs follow the store's collection hierarchy, up to the depth in the
   "Breadcrumb depth" setting (Home counts as one level). A collection's parent is its
-  custom.parent_collection metafield, or else the collection whose custom.subcollections list includes it.
+  custom.parent_collection metafield, then its custom.breadcrumb_parent_collection metafield (a name some
+  themes already use for their visible breadcrumbs), or else the collection whose custom.subcollections
+  list includes it.
   On product pages without collection context, a collection that has a parent is preferred, so the
-  trail is as specific as possible. Loops in the hierarchy stop the walk.
+  trail is as specific as possible. Loops in the hierarchy stop the walk. Collections listed in
+  "Collections to skip in breadcrumbs" never start a product trail, and their own pages get no BreadcrumbList.
   Each node is preceded by a comma; snippets/mega-schema.liquid removes the leading one.
 
   @param {string} site_url - The store's primary URL without a trailing slash
@@ -55,6 +58,11 @@
       assign has_breadcrumb = false
   endcase
 
+  assign excluded_handles = settings.schema_breadcrumb_exclude | remove: ' ' | split: ','
+  if request.page_type == 'collection' and excluded_handles contains collection.handle
+    assign has_breadcrumb = false
+  endif
+
   assign crumb_names = ''
   assign crumb_urls = ''
   if has_breadcrumb
@@ -79,8 +87,10 @@
     case request.page_type
       when 'product'
         assign crumb_collection = collection
+        if crumb_collection != blank and excluded_handles contains crumb_collection.handle
+          assign crumb_collection = ''
+        endif
         if crumb_collection == blank
-          assign excluded_handles = settings.schema_breadcrumb_exclude | remove: ' ' | split: ','
           assign fallback_collection = ''
           for product_collection in product.collections
             if excluded_handles contains product_collection.handle
@@ -91,6 +101,9 @@
             endif
             assign has_parent = false
             if product_collection.metafields.custom.parent_collection.value != blank
+              assign has_parent = true
+            endif
+            if product_collection.metafields.custom.breadcrumb_parent_collection.value != blank
               assign has_parent = true
             endif
             assign map_key = '|' | append: product_collection.handle | append: '>'
@@ -137,6 +150,9 @@
       if ancestor_limit > 0
         for step in (1..ancestor_limit)
           assign parent_collection = current_collection.metafields.custom.parent_collection.value
+          if parent_collection == blank
+            assign parent_collection = current_collection.metafields.custom.breadcrumb_parent_collection.value
+          endif
           if parent_collection == blank
             assign map_key = '|' | append: current_collection.handle | append: '>'
             if parent_map contains map_key
