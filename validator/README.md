@@ -10,8 +10,8 @@ data, then checks that:
 - a review-app style block (only an `@id` and a rating, as Bazaarvoice injects) merges into the product node,
 - every GTIN is digits only, the right length and has a valid GS1 check digit (sample data includes invalid
   barcodes that must be omitted),
-- breadcrumbs follow the collection hierarchy (`custom.parent_collection` and `custom.subcollections`), respect
-  the depth setting and stop at loops,
+- breadcrumbs follow the collection hierarchy (`custom.parent_collection`, `custom.breadcrumb_parent_collection`
+  and `custom.subcollections`), respect the depth setting, stop at loops and skip excluded collections,
 - products from owned brands name the company as manufacturer, and a resold product (vendor not in
   `schema_brands`) gets no manufacturer and is not claimed in the company's brand list.
 

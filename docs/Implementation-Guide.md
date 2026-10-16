@@ -83,13 +83,18 @@ also filled, so partial rows never produce half an FAQ.
 ### Optional: collection hierarchy for deeper breadcrumbs
 
 Breadcrumbs follow parent and child collections when the store records them, up to five levels
-(`Home › Department › Category › Subcategory › Product`). Use either metafield, or both; a collection's own
-`parent_collection` wins when both exist.
+(`Home › Department › Category › Subcategory › Product`). Use any of these metafields; a collection's own
+parent reference wins over a subcollection list, and `parent_collection` wins over
+`breadcrumb_parent_collection`.
 
 | Owner | Namespace and key | Type | Purpose |
 | --- | --- | --- | --- |
 | Collection | `custom.parent_collection` | Collection reference | Set on a child collection, pointing to its parent |
+| Collection | `custom.breadcrumb_parent_collection` | Collection reference | Same as `parent_collection`. Some themes already use this name for their visible breadcrumbs; if yours does, fill this one so both trails match |
 | Collection | `custom.subcollections` | List of collection references | Set on a parent collection, listing its children |
+
+Sale, clearance and closeout collections often contain products from every category. List their handles in
+`schema_breadcrumb_exclude` (Step 5) so those products take their trail from their regular category.
 
 Without either metafield, breadcrumbs stay at Home › collection › product. The subcollection lists are read by
 looping over the store's collections; on a store with a very large number of collections, prefer
@@ -126,7 +131,7 @@ before, or remove that option.
 
 | File | What to check | Shipped value |
 | --- | --- | --- |
-| `mega-schema-product.liquid` | Option names mapped to color and size | color, colour, cover color; size |
+| `mega-schema-product.liquid` | Option names mapped to color and size | color, colour, cover color; any name containing "size" (Size, Bedding size) |
 | `mega-schema-product.liquid` | Metafield used for Product line (output when it differs from the vendor) | `custom.product_brand` |
 | `mega-schema-product.liquid` | Attribute metafields and their labels in `additionalProperty` | `custom.grill_type` (Grill type), `custom.rv_type` (RV type), `custom.patio_furniture_fit` (Furniture fit) |
 | `mega-schema-page.liquid` | About page detection | Any page handle containing "about" |
@@ -162,7 +167,7 @@ values so a fresh install is correct before anyone opens the editor.
 | Final-sale product tags | `schema_final_sale_tags` | Comma-separated tags for non-returnable products | final-sale |
 | Return policy URL | `schema_return_policy_url` | Path or full URL of the policy page | /policies/refund-policy |
 | Strikethrough prices | `schema_show_strikethrough` | On only when compare-at prices are genuine former prices | On |
-| Breadcrumb exclusions | `schema_breadcrumb_exclude` | Collection handles never used as a product's breadcrumb parent | frontpage, sale, best-sellers |
+| Collections to skip in breadcrumbs | `schema_breadcrumb_exclude` | Collection handles never used for a product's trail; their own pages get no breadcrumb markup | frontpage, sale, closeout |
 | Breadcrumb depth | `schema_breadcrumb_max_depth` | Maximum levels, counting Home and the page (2 to 5) | 5 |
 | Find parents from subcollection lists | `schema_breadcrumb_use_subcollections` | On to read `custom.subcollections` lists as parent links | On |
 
@@ -307,10 +312,12 @@ page has an image, breadcrumb, inLanguage and isPartOf (WebSite).
 
 Starts with Home. Product: Home, the collection's ancestors, the collection, product. The collection is the one in
 the URL; otherwise the product's first collection that has a parent (so the trail is as specific as possible),
-or else its first collection, skipping those listed in `schema_breadcrumb_exclude`. Collection: Home, its
-ancestors, collection. Ancestors come from `custom.parent_collection` or `custom.subcollections` (Step 3), and
-the whole trail is capped at `schema_breadcrumb_max_depth` levels, counting Home and the page. A loop in the
-hierarchy ends the walk. Blog: Home, blog. Article: Home, blog, article. Other pages: Home, page.
+or else its first collection. Collections listed in `schema_breadcrumb_exclude` are always skipped, even when
+they are in the URL. Collection: Home, its ancestors, collection; collections in `schema_breadcrumb_exclude` get
+no BreadcrumbList. Ancestors come from `custom.parent_collection`, `custom.breadcrumb_parent_collection` or
+`custom.subcollections` (Step 3), and the whole trail is capped at `schema_breadcrumb_max_depth` levels,
+counting Home and the page. A loop in the hierarchy ends the walk. Blog: Home, blog. Article: Home, blog,
+article. Other pages: Home, page.
 
 ### ItemList (collection pages)
 

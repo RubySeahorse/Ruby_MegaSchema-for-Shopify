@@ -187,8 +187,8 @@
       {
         "type": "text",
         "id": "schema_breadcrumb_exclude",
-        "label": "Collections to skip in product breadcrumbs",
-        "info": "Comma-separated collection handles. Used when a product is opened outside a collection.",
+        "label": "Collections to skip in breadcrumbs",
+        "info": "Comma-separated collection handles, for example sale or closeout collections. Products never take their breadcrumb from these collections, and these collection pages get no breadcrumb markup.",
         "default": "frontpage"
       },
       {
@@ -199,7 +199,7 @@
         "max": 5,
         "step": 1,
         "default": 5,
-        "info": "Maximum breadcrumb levels, counting Home and the page itself. Deeper trails follow the collection hierarchy (custom.parent_collection or custom.subcollections metafields)."
+        "info": "Maximum breadcrumb levels, counting Home and the page itself. Deeper trails follow the collection hierarchy (custom.parent_collection, custom.breadcrumb_parent_collection or custom.subcollections metafields)."
       },
       {
         "type": "checkbox",
