@@ -151,7 +151,7 @@ values so a fresh install is correct before anyone opens the editor.
 | Schema source | `schema_source` | MegaSchema, Legacy (rollback) or Off | MegaSchema |
 | Legal name | `schema_legal_name` | Registered company name; blank to omit | Example Outdoor Co., Inc. |
 | Logo for search engines | `schema_logo` | Logo image, at least 112 x 112 px; falls back to Settings > Brand. Without either, the Organization has no logo. | The store logo file |
-| Company description | `schema_org_description` | Two to four factual sentences about the company. No promotions. | The About page summary |
+| Company description | `schema_org_description` | Two to four factual sentences about the company. No promotions, and no unsupported superlatives such as "the leading manufacturer"; AI engines discount them. | The About page summary |
 | Founding date | `schema_founding_date` | Year or ISO date | 1990 |
 | Customer service phone | `schema_phone` | International format | +1-555-010-0000 |
 | Customer service email | `schema_email` | Public support address | support@example-store.com |
@@ -164,7 +164,7 @@ values so a fresh install is correct before anyone opens the editor.
 | Return window | `schema_return_days` | Days allowed for returns | 30 |
 | Return shipping fee | `schema_return_fee` | Fee for change-of-mind returns; 0 for free returns | 25 |
 | Restocking fee | `schema_restocking_fee` | Percentage; 0 to omit | 10 |
-| Final-sale product tags | `schema_final_sale_tags` | Comma-separated tags for non-returnable products | final-sale |
+| Final-sale product tags | `schema_final_sale_tags` | Comma-separated tags for non-returnable products. Leave blank when the store accepts all returns. Before adding a tag, confirm with the team what it means and count the products that carry it: a tag that looks like "discontinued" may really mean "discounted" | Blank, or final-sale |
 | Return policy URL | `schema_return_policy_url` | Path or full URL of the policy page | /policies/refund-policy |
 | Strikethrough prices | `schema_show_strikethrough` | On only when compare-at prices are genuine former prices | On |
 | Collections to skip in breadcrumbs | `schema_breadcrumb_exclude` | Collection handles never used for a product's trail; their own pages get no breadcrumb markup | frontpage, sale, closeout |
@@ -224,6 +224,13 @@ government and health sites. Use the Schema Markup Validator to confirm the FAQP
 3. Rollback: set Schema source to Legacy in Theme settings.
 4. Over the next two to four weeks, watch Search Console: Merchant listings, Product snippets, Breadcrumbs,
    and the Page indexing report for new errors.
+5. Measure the effect where it shows first. Structured data changes how results look more than where they rank,
+   so compare click-through rate before and after launch in the Performance report, filtered by Search
+   appearance (Product snippets, Merchant listings). Expect several weeks before Google has re-crawled enough
+   pages to show a trend, and use Request Indexing on the most important URLs to speed it up.
+6. Check that the Organization has `sameAs`. If neither Settings > Brand nor the theme's Social media settings
+   hold profile links, the Organization has none, and audits flag it. Add the links in either place, or in Extra
+   profile URLs.
 
 ## Reference: identifier conventions
 
@@ -410,6 +417,13 @@ pairs render as the visible accordion.
 - Manufacturer and company brands are claimed only for brands the company owns (`schema_brands`). A store that
   resells other companies' products must not name itself as their manufacturer.
 - Test single-variant, multi-variant and final-sale products every time the product snippet changes.
+- FAQ answers agree with the product. Answer engines quote FAQ text word for word, so a shared answer such as
+  "our covers are not waterproof" on a product sold as waterproof travels as a contradiction. Prefer FAQs
+  written per product line over one block repeated on every product page.
+- Page descriptions come from the SEO description fields unchanged. If those fields were cut short by a bulk
+  import, the markup is cut short too; fix the field, not the code.
+- Leave out optional fields the store has no real value for. `priceValidUntil` is the common case: Shopify
+  records no sale end date, and an invented date is worse than none. `speakable` is for news publishers only.
 
 ## Troubleshooting
 
@@ -422,5 +436,9 @@ pairs render as the visible accordion.
 | Validator: undefined filter | A Shopify-only filter is not mocked in `run.js` | Add a `registerFilter` line for it in `run.js`; it is not a theme error |
 | Two Product or BreadcrumbList entries on the live page | Theme or app schema still active | Search the theme for `ld+json` and `structured_data`; turn off app embeds |
 | Merchant listings warning on return policy | Settings do not match the policy page | Compare each setting with the official policy text |
+| Products that should be returnable point to `#return_policy_final_sale` | A tag in Final-sale product tags is on more products than intended | Count the products with each tag; remove the tag from the setting, or leave the setting blank if all returns are accepted |
+| Page description in the markup ends mid-sentence | The product's or page's SEO description is itself cut off | Finish the sentence in the resource's Search engine listing |
+| An audit of the page source reports no aggregateRating, but the Rich Results Test shows ratings | The review app adds its ratings with JavaScript, which Google runs but source-only audits do not | Expected. To make ratings dependable, sync the review app's averages and counts into the `reviews.rating` and `reviews.rating_count` metafields, which MegaSchema reads |
+| Search Console still shows old markup after a fix | Google has not re-crawled the page yet | Use URL Inspection, then Request Indexing |
 | FAQ section missing on a page | No complete question and answer pair | Fill both fields of at least one pair |
 | Matrixify import fails on answers | Line breaks in a single line text value | Remove line breaks from the cell |
