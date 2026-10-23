@@ -284,6 +284,9 @@ function shopifyTokenizerProblems() {
       });
     });
     refs.forEach((r) => { if (!ids.has(r)) problems.push('unresolved reference ' + r); });
+    // An unreferenced return policy shows as a stray top-level item in the Schema Markup Validator, and a
+    // stray "no returns" policy reads as if the product were final sale.
+    [...typedIds].filter((i) => /#return_policy/.test(i) && !refs.includes(i)).forEach((i) => problems.push('return policy node nothing points to: ' + i));
     untyped.forEach((u) => { if (!typedIds.has(u)) problems.push(`untyped block ${u} does not merge into a typed node (review app ratings would be lost)`); });
     // Expectations depend on TEST_SETTINGS (owned brands), so they are skipped in defaults-only mode.
     if (orgNode && shop.brand.logo && !orgNode.logo) problems.push('Organization missing logo although a logo is available');

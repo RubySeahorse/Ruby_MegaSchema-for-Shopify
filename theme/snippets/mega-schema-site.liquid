@@ -1,6 +1,7 @@
 {%- doc -%}
   Outputs the site-wide JSON-LD nodes for the MegaSchema @graph: Organization, WebSite, Brand,
-  the standard return policy, and on product pages the final-sale return policy and shipping details.
+  the standard return policy, and on product pages the shipping details. The final-sale return policy is
+  output by snippets/mega-schema-product.liquid, only for products that use it.
   Each node is preceded by a comma; snippets/mega-schema.liquid removes the leading one.
   Business values come from the "Structured data" group in theme settings.
 
@@ -11,7 +12,6 @@
   assign org_id = site_url | append: '/#organization'
   assign website_id = site_url | append: '/#website'
   assign return_id = site_url | append: '/#return_policy'
-  assign return_final_id = site_url | append: '/#return_policy_final_sale'
   assign shipping_id = site_url | append: '/#shipping_policy'
   assign search_url_template = site_url | append: routes.search_url | append: '?q={search_term_string}'
   assign schema_currency = cart.currency.iso_code
@@ -180,15 +180,6 @@
 }
 
 {%- if request.page_type == 'product' -%}
-  ,{
-    "@type": "MerchantReturnPolicy",
-    "@id": {{ return_final_id | json }},
-    "applicableCountry": [{{ schema_country | json }}],
-    "returnPolicyCountry": {{ schema_country | json }},
-    "returnPolicyCategory": "https://schema.org/MerchantReturnNotPermitted",
-    "merchantReturnLink": {{ return_link | json }}
-  }
-
   ,{
     "@type": "OfferShippingDetails",
     "@id": {{ shipping_id | json }},

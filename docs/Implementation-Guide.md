@@ -276,7 +276,7 @@ potentialAction: SearchAction whose target is an EntryPoint with urlTemplate
 One node per name in `schema_brands` plus the vendor of the current product: `@id`, name, and url when a
 collection exists with the brand's handle.
 
-### MerchantReturnPolicy (every page) and final-sale policy (product pages)
+### MerchantReturnPolicy (every page) and final-sale policy (final-sale products only)
 
 | Property | Value |
 | --- | --- |
