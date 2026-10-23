@@ -2,7 +2,8 @@
   Outputs the product node for the MegaSchema @graph. Products with more than one variant output a
   ProductGroup with one Product per variant in hasVariant; single-variant products output one Product.
   Offers reference the return and shipping nodes from snippets/mega-schema-site.liquid. Products tagged
-  with a final-sale tag from theme settings reference the final-sale return policy instead.
+  with a final-sale tag from theme settings reference a final-sale return policy instead, which this
+  snippet outputs only for those products, so no unused "no returns" node appears on other pages.
   The node is preceded by a comma; snippets/mega-schema.liquid removes the leading one.
   The product's @id is the bare product URL, because review apps such as Bazaarvoice attach their
   aggregateRating and review JSON-LD to the node with that exact @id.
@@ -42,14 +43,23 @@
   assign product_id = product_url
 
   assign return_ref = site_url | append: '/#return_policy'
+  assign is_final_sale = false
   assign final_sale_tags = settings.schema_final_sale_tags | split: ','
   for final_sale_tag in final_sale_tags
     assign clean_tag = final_sale_tag | strip
     if clean_tag != blank and product.tags contains clean_tag
+      assign is_final_sale = true
       assign return_ref = site_url | append: '/#return_policy_final_sale'
       break
     endif
   endfor
+  if is_final_sale
+    assign schema_country = settings.schema_country | default: 'US'
+    assign return_link = settings.schema_return_policy_url | default: '/policies/refund-policy'
+    unless return_link contains '://'
+      assign return_link = site_url | append: return_link
+    endunless
+  endif
 
   assign color_index = -1
   assign size_index = -1
@@ -251,6 +261,17 @@
     {%- endif -%}
   {%- endfor -%}
 {%- endcapture -%}
+
+{%- if is_final_sale -%}
+  ,{
+    "@type": "MerchantReturnPolicy",
+    "@id": {{ return_ref | json }},
+    "applicableCountry": [{{ schema_country | json }}],
+    "returnPolicyCountry": {{ schema_country | json }},
+    "returnPolicyCategory": "https://schema.org/MerchantReturnNotPermitted",
+    "merchantReturnLink": {{ return_link | json }}
+  }
+{%- endif -%}
 
 ,{
   "@type": {% if is_group %}"ProductGroup"{% else %}"Product"{% endif %},
