@@ -7,6 +7,8 @@ data, then checks that:
 - every JSON-LD block is valid JSON,
 - no node `@id` appears twice in a graph,
 - every `@id` reference points to a node on the same page,
+- no return policy node is left with nothing pointing to it, and nothing points to the Product, ProductGroup,
+  BreadcrumbList or FAQPage, so the Schema Markup Validator lists each as its own section,
 - a review-app style block (only an `@id` and a rating, as Bazaarvoice injects) merges into the product node,
 - every GTIN is digits only, the right length and has a valid GS1 check digit (sample data includes invalid
   barcodes that must be omitted),

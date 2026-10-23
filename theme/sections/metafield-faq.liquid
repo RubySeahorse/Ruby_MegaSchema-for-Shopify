@@ -90,14 +90,9 @@
       {
         "@context": "https://schema.org",
         "@type": "FAQPage",
-        "@id": {{ canonical_url | append: '#faq' | json }},
+        "@id": {{ canonical_url | split: '?' | first | append: '#faq' | json }},
         "name": {{ faq_title | json }},
         "isPartOf": {"@id": {{ canonical_url | split: '?' | first | append: '#webpage' | json }}},
-        {%- if request.page_type == 'product' -%}
-          "about": {"@id": {{ shop.url | append: product.url | json }}},
-        {%- else -%}
-          "about": {"@id": {{ canonical_url | split: '?' | first | append: '#webpage' | json }}},
-        {%- endif -%}
         "mainEntity": [{{ faq_entities }}]
       }
     </script>

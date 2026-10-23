@@ -10,6 +10,10 @@
   On product pages without collection context, a collection that has a parent is preferred, so the
   trail is as specific as possible. Loops in the hierarchy stop the walk. Collections listed in
   "Collections to skip in breadcrumbs" never start a product trail, and their own pages get no BreadcrumbList.
+  Links point from the main item to the page, never the other way: the Product and BlogPosting name the
+  page in mainEntityOfPage, and the page node does not link to them or to the BreadcrumbList. Validators
+  list only items nothing points to at the top level, so this keeps the product, breadcrumb and FAQ as
+  separate sections there instead of nesting everything under one of them.
   Each node is preceded by a comma; snippets/mega-schema.liquid removes the leading one.
 
   @param {string} site_url - The store's primary URL without a trailing slash
@@ -33,7 +37,6 @@
       assign about_id = org_id
     when 'product'
       assign page_type = 'ItemPage'
-      assign main_entity_id = site_url | append: product.url
       assign page_image = product.featured_image
     when 'collection'
       assign page_type = 'CollectionPage'
@@ -42,7 +45,6 @@
     when 'blog'
       assign main_entity_id = page_url | append: '#blog'
     when 'article'
-      assign main_entity_id = page_url | append: '#article'
       assign page_image = article.image
     when 'page'
       if page.handle contains 'about'
@@ -206,9 +208,6 @@
   {%- endif -%}
   {%- if about_id != blank -%}
     "about": {"@id": {{ about_id | json }}},
-  {%- endif -%}
-  {%- if has_breadcrumb and crumb_name_list.size > 0 -%}
-    "breadcrumb": {"@id": {{ breadcrumb_id | json }}},
   {%- endif -%}
   "inLanguage": {{ request.locale.iso_code | json }},
   "isPartOf": {"@id": {{ website_id | json }}}
