@@ -245,6 +245,7 @@ function shopifyTokenizerProblems() {
     const blocks = extractBlocks(html);
     const ids = new Set();
     const typedIds = new Set();
+    const topTypes = new Map();
     const untyped = [];
     const refs = [];
     const types = [];
@@ -278,6 +279,7 @@ function shopifyTokenizerProblems() {
           if (type && top.includes(n)) {
             if (typedIds.has(n['@id'])) problems.push('duplicate node @id ' + n['@id']);
             typedIds.add(n['@id']);
+            topTypes.set(n['@id'], type);
           } else if (!type && top.includes(n)) untyped.push(n['@id']);
           ids.add(n['@id']);
         } else if (n['@id']) refs.push(n['@id']);
@@ -287,6 +289,9 @@ function shopifyTokenizerProblems() {
     // An unreferenced return policy shows as a stray top-level item in the Schema Markup Validator, and a
     // stray "no returns" policy reads as if the product were final sale.
     [...typedIds].filter((i) => /#return_policy/.test(i) && !refs.includes(i)).forEach((i) => problems.push('return policy node nothing points to: ' + i));
+    // The product, breadcrumb and FAQ must stay top-level items in the Schema Markup Validator, which nests any
+    // node that another node points to. Non-developers judge the markup by those sections.
+    topTypes.forEach((type, i) => { if (['Product', 'ProductGroup', 'BreadcrumbList', 'FAQPage'].includes(type) && refs.includes(i)) problems.push(`${type} is pointed to by another node, so validators nest it instead of listing it: ${i}`); });
     untyped.forEach((u) => { if (!typedIds.has(u)) problems.push(`untyped block ${u} does not merge into a typed node (review app ratings would be lost)`); });
     // Expectations depend on TEST_SETTINGS (owned brands), so they are skipped in defaults-only mode.
     if (orgNode && shop.brand.logo && !orgNode.logo) problems.push('Organization missing logo although a logo is available');

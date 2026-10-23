@@ -303,17 +303,22 @@ maxValue in unitCode DAY.
 | Page | `@type` | mainEntity or about |
 | --- | --- | --- |
 | Home | WebPage | about: Organization |
-| Product | ItemPage | mainEntity: Product or ProductGroup |
+| Product | ItemPage | None (the product points to the page with mainEntityOfPage) |
 | Collection | CollectionPage | mainEntity: ItemList |
 | Blog | WebPage | mainEntity: Blog |
-| Article | WebPage | mainEntity: BlogPosting |
+| Article | WebPage | None (the BlogPosting points to the page with mainEntityOfPage) |
 | About page | AboutPage | mainEntity: Organization |
 | Contact page | ContactPage | mainEntity: Organization |
 | Search | SearchResultsPage | None |
 | Any other page | WebPage | None |
 
 Every page node also has url, name (page title), description (meta description), primaryImageOfPage when the
-page has an image, breadcrumb, inLanguage and isPartOf (WebSite).
+page has an image, inLanguage and isPartOf (WebSite).
+
+The page node never points to the product, article or BreadcrumbList; those point to the page instead, or stand
+alone. The Schema Markup Validator lists only items that nothing points to at the top level and nests the rest,
+so this layout shows the product, breadcrumb and FAQ as separate sections there. The validator's nesting check
+keeps it that way.
 
 ### BreadcrumbList (every page except home, 404, cart and password)
 
@@ -345,6 +350,7 @@ Organization when the author is the store name, otherwise a Person), publisher, 
 | --- | --- |
 | `@type` | ProductGroup when the product has more than one variant, otherwise Product |
 | name, url | `product.title`, product URL |
+| mainEntityOfPage | Reference to the page node (`{product URL}#webpage`) |
 | description | Product description as plain text (HTML removed, entities decoded, up to 5,000 characters), falling back to the SEO description. Repeated on every variant, because Google checks each variant as its own Product. |
 | image | Up to 10 product images at 1,200 px |
 | brand | Reference to the Brand node for `product.vendor` |
@@ -373,7 +379,7 @@ Organization when the author is the store name, otherwise a Person), publisher, 
 
 ### FAQPage (metafield-faq section)
 
-`@id` `{page}#faq`, name (FAQ title metafield), isPartOf (page node), about (the product or the page),
+`@id` `{page}#faq`, name (FAQ title metafield), isPartOf (page node),
 mainEntity: one Question per complete pair, each with name and an acceptedAnswer Answer with text. The same
 pairs render as the visible accordion.
 

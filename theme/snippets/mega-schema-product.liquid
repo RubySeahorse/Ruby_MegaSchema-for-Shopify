@@ -277,6 +277,7 @@
   "@type": {% if is_group %}"ProductGroup"{% else %}"Product"{% endif %},
   "@id": {{ product_id | json }},
   "url": {{ product_url | json }},
+  "mainEntityOfPage": {"@id": {{ product_url | append: '#webpage' | json }}},
   "name": {{ product.title | json }},
   {%- if product_description != blank -%}
     "description": {{ product_description | json }},
