@@ -12,13 +12,13 @@ anything beyond VS Code.
 | Page | Nodes |
 | --- | --- |
 | Every page | Organization, WebSite with SearchAction, Brand, MerchantReturnPolicy, page node, BreadcrumbList |
-| Product | ItemPage, Product or ProductGroup with one Product per variant, Offers with GTIN, strikethrough price, shipping details and return policy (including a final-sale policy by tag), product videos, related products, attributes from metafields, AggregateRating when review metafields exist |
+| Product | ItemPage, Product or ProductGroup with one Product per variant, Offers with GTIN, strikethrough price, shipping details (store-wide or per vendor, with an optional free-shipping threshold) and return policy (including a final-sale policy by tag), product videos, related products, attributes from metafields, AggregateRating when review metafields exist |
 | Collection | CollectionPage, ItemList of products |
 | Blog / article | Blog with BlogPosting list / BlogPosting with author and publisher |
 | About / Contact | AboutPage / ContactPage pointing at the Organization |
 | Product and collection FAQs | FAQPage built from the same metafields as the visible accordion |
 
-All business values (address, phone, brands, shipping times, return fees, final-sale tags) are theme settings
+All business values (address, phone, brands, shipping rates and times, per-vendor shipping, return fees, final-sale tags) are theme settings
 in a Structured data group, so the code is the same for every store. A Schema source setting switches between
 MegaSchema, the theme's previous schema and off, for rollback without a code change.
 
@@ -27,9 +27,9 @@ MegaSchema, the theme's previous schema and off, for rollback without a code cha
 ```
 theme/
   snippets/mega-schema.liquid          entry point, outputs the @graph
-  snippets/mega-schema-site.liquid     Organization, WebSite, Brand, return and shipping policies
+  snippets/mega-schema-site.liquid     Organization, WebSite, Brand, return policy
   snippets/mega-schema-page.liquid     page node, BreadcrumbList (follows the collection hierarchy), ItemList, Blog, BlogPosting
-  snippets/mega-schema-product.liquid  Product / ProductGroup, variants, offers
+  snippets/mega-schema-product.liquid  Product / ProductGroup, variants, offers, shipping details
   sections/metafield-faq.liquid        FAQ accordion + FAQPage from pdp_faq_* / plp_faq_* metafields
   config/settings_schema.json          the Structured data settings group to append to a theme
 docs/

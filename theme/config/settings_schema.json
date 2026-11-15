@@ -108,10 +108,18 @@
         "content": "Shipping"
       },
       {
+        "type": "checkbox",
+        "id": "schema_shipping_enabled",
+        "label": "Output product shipping details",
+        "default": true,
+        "info": "Turn off to omit every shipping claim, for example while handling and transit times are unconfirmed."
+      },
+      {
         "type": "number",
         "id": "schema_shipping_rate",
         "label": "Shipping rate",
-        "default": 0
+        "default": 0,
+        "info": "Standard rate in the store currency, for products whose vendor is not in Vendor shipping."
       },
       {
         "type": "number",
@@ -137,6 +145,19 @@
         "id": "schema_transit_max",
         "label": "Transit days, maximum",
         "default": 5
+      },
+      {
+        "type": "number",
+        "id": "schema_free_shipping_threshold",
+        "label": "Free shipping threshold",
+        "default": 0,
+        "info": "Store-currency price at or above which shipping is free. Variants priced at or above it show a rate of 0. 0 turns this off."
+      },
+      {
+        "type": "textarea",
+        "id": "schema_shipping_vendors",
+        "label": "Vendor shipping",
+        "info": "For vendors that ship on their own terms. One per line: Vendor | rate | handling days | transit days, for example Acme Supply | 4.95 | 1-2 | 3-5. Write max 13.00 when the rate varies up to a ceiling. A vendor listed with any field blank or not a number gets no shipping details at all. Vendors not listed use the store-wide values above."
       },
       {
         "type": "header",

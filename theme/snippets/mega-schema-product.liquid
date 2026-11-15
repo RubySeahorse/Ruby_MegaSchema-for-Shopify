@@ -1,9 +1,12 @@
 {%- doc -%}
   Outputs the product node for the MegaSchema @graph. Products with more than one variant output a
   ProductGroup with one Product per variant in hasVariant; single-variant products output one Product.
-  Offers reference the return and shipping nodes from snippets/mega-schema-site.liquid. Products tagged
+  Offers reference the return policy from snippets/mega-schema-site.liquid. Products tagged
   with a final-sale tag from theme settings reference a final-sale return policy instead, which this
   snippet outputs only for those products, so no unused "no returns" node appears on other pages.
+  Offers also reference shipping details that this snippet outputs: the store-wide values, or the
+  product vendor's line in the "Vendor shipping" setting, with a rate of 0 for variants priced at or
+  above the free-shipping threshold. A vendor listed without complete values gets no shipping details.
   The node is preceded by a comma; snippets/mega-schema.liquid removes the leading one.
   The product's @id is the bare product URL, because review apps such as Bazaarvoice attach their
   aggregateRating and review JSON-LD to the node with that exact @id.
@@ -16,7 +19,6 @@
 
 {%- liquid
   assign org_id = site_url | append: '/#organization'
-  assign shipping_id = site_url | append: '/#shipping_policy'
   assign product_url = site_url | append: product.url
   assign schema_currency = cart.currency.iso_code
   assign vendor_handle = product.vendor | handleize
@@ -53,13 +55,101 @@
       break
     endif
   endfor
+  assign schema_country = settings.schema_country | default: 'US'
   if is_final_sale
-    assign schema_country = settings.schema_country | default: 'US'
     assign return_link = settings.schema_return_policy_url | default: '/policies/refund-policy'
     unless return_link contains '://'
       assign return_link = site_url | append: return_link
     endunless
   endif
+
+  comment
+    Shipping. A vendor named in the "Vendor shipping" setting uses its own line, and the first complete
+    line for that vendor wins. A vendor that is listed but has no complete line gets no shipping details,
+    so unknown times are never filled in from the store-wide values. Other products use the store-wide
+    values. Rates are in the store currency, so a rate above 0 is claimed only when the page shows the
+    store currency. Variants priced at or above the free-shipping threshold point to a copy of the node
+    with a rate of 0. Each node is output only when an offer points to it.
+  endcomment
+  assign ship_source = 'default'
+  assign ship_id = site_url | append: '/#shipping_policy'
+  assign ship_rate = settings.schema_shipping_rate | default: 0
+  assign ship_rate_is_max = false
+  assign ship_handling_min = settings.schema_handling_min | default: 1
+  assign ship_handling_max = settings.schema_handling_max | default: 3
+  assign ship_transit_min = settings.schema_transit_min | default: 3
+  assign ship_transit_max = settings.schema_transit_max | default: 5
+  if vendor_key != blank and settings.schema_shipping_vendors != blank
+    assign ship_digits = '0,1,2,3,4,5,6,7,8,9' | split: ','
+    assign ship_lines = settings.schema_shipping_vendors | newline_to_br | split: '<br />'
+    for ship_line in ship_lines
+      assign ship_parts = ship_line | split: '|'
+      assign ship_vendor_key = ship_parts[0] | strip | downcase
+      if ship_vendor_key != vendor_key
+        continue
+      endif
+      assign ship_source = 'none'
+      if ship_parts.size < 4
+        continue
+      endif
+      assign ship_rate_text = ship_parts[1] | strip | downcase
+      assign ship_handling = ship_parts[2] | strip | split: '-'
+      assign ship_transit = ship_parts[3] | strip | split: '-'
+      if ship_rate_text == blank or ship_handling.size == 0 or ship_transit.size == 0
+        continue
+      endif
+      assign line_rate_is_max = false
+      if ship_rate_text contains 'max'
+        assign line_rate_is_max = true
+        assign ship_rate_text = ship_rate_text | remove: 'max' | strip
+      endif
+      comment
+        Text such as TBD would convert to 0 and claim free or same-day shipping, so every field must be
+        digits, dots and range dashes only.
+      endcomment
+      assign ship_check = ship_rate_text | append: ship_parts[2] | append: ship_parts[3] | remove: '.' | remove: '-' | remove: ' '
+      for ship_digit in ship_digits
+        assign ship_check = ship_check | remove: ship_digit
+      endfor
+      if ship_check != blank or ship_rate_text == blank
+        continue
+      endif
+      assign line_rate = ship_rate_text | plus: 0
+      assign line_handling_min = ship_handling.first | strip | plus: 0
+      assign line_handling_max = ship_handling.last | strip | plus: 0
+      assign line_transit_min = ship_transit.first | strip | plus: 0
+      assign line_transit_max = ship_transit.last | strip | plus: 0
+      if line_rate < 0 or line_handling_min < 0 or line_transit_min < 0
+        continue
+      endif
+      if line_handling_max < line_handling_min or line_transit_max < line_transit_min
+        continue
+      endif
+      assign ship_source = 'vendor'
+      assign ship_id = site_url | append: '/#shipping_policy_vendor-' | append: vendor_handle
+      assign ship_rate = line_rate
+      assign ship_rate_is_max = line_rate_is_max
+      assign ship_handling_min = line_handling_min
+      assign ship_handling_max = line_handling_max
+      assign ship_transit_min = line_transit_min
+      assign ship_transit_max = line_transit_max
+      break
+    endfor
+  endif
+  unless settings.schema_shipping_enabled
+    assign ship_source = 'none'
+  endunless
+  assign ship_has_rate = false
+  if ship_rate > 0 or ship_rate_is_max
+    assign ship_has_rate = true
+    if schema_currency != shop.currency
+      assign ship_source = 'none'
+    endif
+  endif
+  assign ship_free_id = ship_id | append: '_free'
+  assign ship_free_cents = settings.schema_free_shipping_threshold | default: 0 | times: 100
+  assign ship_paid_used = false
+  assign ship_free_used = false
 
   assign color_index = -1
   assign size_index = -1
@@ -203,6 +293,13 @@
       endif
       assign variant_image = variant.featured_image | default: product.featured_image
       assign variant_price = variant.price | money_without_currency | remove: ','
+      assign variant_ship_ref = ship_id
+      if ship_has_rate and ship_free_cents > 0 and variant.price >= ship_free_cents
+        assign variant_ship_ref = ship_free_id
+        assign ship_free_used = true
+      else
+        assign ship_paid_used = true
+      endif
     -%}
     {%- capture variant_identity -%}
       {%- if variant.sku != blank -%}
@@ -236,7 +333,9 @@
         "availability": "https://schema.org/{% if variant.available %}InStock{% else %}OutOfStock{% endif %}",
         "itemCondition": "https://schema.org/NewCondition",
         "seller": {"@id": {{ org_id | json }}},
-        "shippingDetails": {"@id": {{ shipping_id | json }}},
+        {%- if ship_source != 'none' -%}
+          "shippingDetails": {"@id": {{ variant_ship_ref | json }}},
+        {%- endif -%}
         "hasMerchantReturnPolicy": {"@id": {{ return_ref | json }}}
       }
     {%- endcapture -%}
@@ -271,6 +370,37 @@
     "returnPolicyCategory": "https://schema.org/MerchantReturnNotPermitted",
     "merchantReturnLink": {{ return_link | json }}
   }
+{%- endif -%}
+
+{%- if ship_source != 'none' -%}
+  {%- capture ship_delivery -%}
+    "shippingDestination": {"@type": "DefinedRegion", "addressCountry": {{ schema_country | json }}},
+    "deliveryTime": {
+      "@type": "ShippingDeliveryTime",
+      "handlingTime": {"@type": "QuantitativeValue", "minValue": {{ ship_handling_min | json }}, "maxValue": {{ ship_handling_max | json }}, "unitCode": "DAY"},
+      "transitTime": {"@type": "QuantitativeValue", "minValue": {{ ship_transit_min | json }}, "maxValue": {{ ship_transit_max | json }}, "unitCode": "DAY"}
+    }
+  {%- endcapture -%}
+  {%- if ship_paid_used -%}
+    ,{
+      "@type": "OfferShippingDetails",
+      "@id": {{ ship_id | json }},
+      "shippingRate": {
+        "@type": "MonetaryAmount",
+        "{% if ship_rate_is_max %}maxValue{% else %}value{% endif %}": {{ ship_rate | json }},
+        "currency": {{ schema_currency | json }}
+      },
+      {{ ship_delivery }}
+    }
+  {%- endif -%}
+  {%- if ship_free_used -%}
+    ,{
+      "@type": "OfferShippingDetails",
+      "@id": {{ ship_free_id | json }},
+      "shippingRate": {"@type": "MonetaryAmount", "value": 0, "currency": {{ schema_currency | json }}},
+      {{ ship_delivery }}
+    }
+  {%- endif -%}
 {%- endif -%}
 
 ,{

@@ -60,6 +60,7 @@ const TEST_SETTINGS = {
   schema_restocking_fee: 10,
   schema_final_sale_tags: 'final-sale',
   schema_breadcrumb_exclude: 'frontpage, sale, clearance',
+  schema_shipping_vendors: 'Other Maker Co. | 9.95 | 2-3 | 4-6\nIncomplete Supplier | 0 | | 3-5',
 };
 if (process.env.MEGASCHEMA_DEFAULTS_ONLY !== '1') Object.assign(settings, TEST_SETTINGS);
 
@@ -68,6 +69,7 @@ const site = 'https://www.example-store.com';
 const shop = {
   url: site,
   name: 'Example Outdoor Co.',
+  currency: 'USD',
   description: 'Covers and cushions for outdoor living.',
   brand: {
     logo: { src: 'files/logo.png', width: 1200, height: 400 },
@@ -154,10 +156,18 @@ const blog = { title: 'Journal', url: '/blogs/journal', articles };
 const base = { shop, settings, collections, cart: { currency: { iso_code: 'USD' } }, routes: { search_url: '/search' } };
 const scenarios = [
   { name: 'home', page_type: 'index', canonical_url: site + '/', page_title: 'Example Outdoor Co.' },
-  { name: 'product-group', page_type: 'product', canonical_url: site + '/products/grill-cover', page_title: 'Grill Cover', product: productGroup, section: 'metafield-faq', expect: { manufacturer: true, gtins: 1 } },
+  { name: 'product-group', page_type: 'product', canonical_url: site + '/products/grill-cover', page_title: 'Grill Cover', product: productGroup, section: 'metafield-faq', expect: { manufacturer: true, gtins: 1, shipping: [0, 0, 0, 0], shippingDays: [1, 3, 3, 5] } },
   { name: 'product-group-in-collection', page_type: 'product', canonical_url: site + '/products/grill-cover', page_title: 'Grill Cover', product: productGroup, collection: { title: 'Grill Covers', url: '/collections/grill-covers', handle: 'grill-covers' } },
   { name: 'product-single-final-sale', page_type: 'product', canonical_url: site + '/products/loveseat-cover', page_title: 'Loveseat Cover', page_description: 'A &quot;tough&quot; cover &amp; more', product: productSingle, section: 'metafield-faq', expect: { manufacturer: true, gtins: 1 } },
-  { name: 'product-resold-other-vendor', page_type: 'product', canonical_url: site + '/products/patio-umbrella', page_title: 'Patio Umbrella', product: productResold, expect: { manufacturer: false, gtins: 1, orgBrandExcludes: site + '/#brand-other-maker-co' } },
+  { name: 'product-resold-other-vendor', page_type: 'product', canonical_url: site + '/products/patio-umbrella', page_title: 'Patio Umbrella', product: productResold, expect: { manufacturer: false, gtins: 1, orgBrandExcludes: site + '/#brand-other-maker-co', shipping: [9.95], shippingDays: [2, 3, 4, 6] } },
+  // Shipping: store-wide rate with a free-shipping threshold, a vendor line with the threshold, a vendor with a
+  // ceiling rate, a vendor listed without complete values, a non-store currency and the global switch.
+  { name: 'shipping-default-threshold', page_type: 'product', canonical_url: site + '/products/grill-cover', page_title: 'Grill Cover', product: productGroup, settings: { schema_shipping_rate: 7.5, schema_free_shipping_threshold: 75 }, expect: { shipping: [7.5, 0, 7.5, 0], shippingDays: [1, 3, 3, 5] } },
+  { name: 'shipping-vendor-threshold', page_type: 'product', canonical_url: site + '/products/grill-cover', page_title: 'Grill Cover', product: { ...productGroup, vendor: 'other maker co.' }, settings: { schema_free_shipping_threshold: 75 }, expect: { shipping: [9.95, 0, 9.95, 0], shippingDays: [2, 3, 4, 6] } },
+  { name: 'shipping-vendor-max-rate', page_type: 'product', canonical_url: site + '/products/patio-umbrella', page_title: 'Patio Umbrella', product: productResold, settings: { schema_shipping_vendors: 'Other Maker Co. | TBD | 1 | 2-5\nOther Maker Co. | max 13.00 | 1 | 2-5' }, expect: { shipping: ['max 13'], shippingDays: [1, 1, 2, 5] } },
+  { name: 'shipping-vendor-incomplete', page_type: 'product', canonical_url: site + '/products/patio-umbrella', page_title: 'Patio Umbrella', product: { ...productResold, vendor: 'Incomplete Supplier' }, expect: { shipping: [null] } },
+  { name: 'shipping-other-currency', page_type: 'product', canonical_url: site + '/products/grill-cover', page_title: 'Grill Cover', product: productGroup, cart: { currency: { iso_code: 'CAD' } }, settings: { schema_shipping_rate: 7.5 }, expect: { shipping: [null, null, null, null] } },
+  { name: 'shipping-switched-off', page_type: 'product', canonical_url: site + '/products/patio-umbrella', page_title: 'Patio Umbrella', product: productResold, settings: { schema_shipping_enabled: false }, expect: { shipping: [null] } },
   { name: 'product-hierarchy-5-levels', page_type: 'product', canonical_url: site + '/products/chair-cover', page_title: 'Chair Cover Deluxe', product: productHierarchy, expect: { crumbs: ['Home', 'Outdoor Covers', 'Seating Covers', 'Chair Covers', 'Chair Cover Deluxe'] } },
   { name: 'product-hierarchy-depth-3', page_type: 'product', canonical_url: site + '/products/chair-cover', page_title: 'Chair Cover Deluxe', product: productHierarchy, settings: { schema_breadcrumb_max_depth: 3 }, expect: { crumbs: ['Home', 'Chair Covers', 'Chair Cover Deluxe'] } },
   { name: 'collection', page_type: 'collection', canonical_url: site + '/collections/grill-covers', page_title: 'Grill &amp; Smoker Covers', collection, section: 'metafield-faq', expect: { crumbs: ['Home', 'Grill Covers'] } },
@@ -251,6 +261,7 @@ function shopifyTokenizerProblems() {
     const types = [];
     let gtinCount = 0;
     let productNode = null;
+    const shippingNodes = new Map();
     let orgNode = null;
     blocks.forEach((b, i) => {
       let json;
@@ -274,6 +285,7 @@ function shopifyTokenizerProblems() {
         }
         if ((type === 'Product' || type === 'ProductGroup') && n['@id'] && sc.product && n['@id'] === site + sc.product.url) productNode = n;
         if (type === 'Organization' && top.includes(n)) orgNode = n;
+        if (type === 'OfferShippingDetails' && n['@id']) shippingNodes.set(n['@id'], n);
         if (typeof n.description === 'string' && /\n/.test(n.description)) problems.push(`line breaks left in ${type || 'node'}.description: ${n.description.slice(0, 50)}`);
         if (n['@id'] && Object.keys(n).length > 1) {
           if (type && top.includes(n)) {
@@ -289,6 +301,7 @@ function shopifyTokenizerProblems() {
     // An unreferenced return policy shows as a stray top-level item in the Schema Markup Validator, and a
     // stray "no returns" policy reads as if the product were final sale.
     [...typedIds].filter((i) => /#return_policy/.test(i) && !refs.includes(i)).forEach((i) => problems.push('return policy node nothing points to: ' + i));
+    [...typedIds].filter((i) => /#shipping_policy/.test(i) && !refs.includes(i)).forEach((i) => problems.push('shipping node nothing points to: ' + i));
     // The product, breadcrumb and FAQ must stay top-level items in the Schema Markup Validator, which nests any
     // node that another node points to. Non-developers judge the markup by those sections.
     topTypes.forEach((type, i) => { if (['Product', 'ProductGroup', 'BreadcrumbList', 'FAQPage'].includes(type) && refs.includes(i)) problems.push(`${type} is pointed to by another node, so validators nest it instead of listing it: ${i}`); });
@@ -305,6 +318,24 @@ function shopifyTokenizerProblems() {
       let crumbNames = null;
       blocks.forEach((b) => { try { const j = JSON.parse(b); (j['@graph'] || [j]).forEach((n) => { if (n['@type'] === 'BreadcrumbList') crumbNames = n.itemListElement.map((i) => i.name); }); } catch {} });
       if (JSON.stringify(crumbNames) !== JSON.stringify(expect.crumbs)) problems.push(`breadcrumb ${JSON.stringify(crumbNames)}; expected ${JSON.stringify(expect.crumbs)}`);
+    }
+    if ('shipping' in expect && productNode) {
+      // One entry per offer: the rate of the shipping node it points to, 'max N' for a ceiling rate, or null.
+      const offers = (productNode.hasVariant || [productNode]).map((v) => v.offers);
+      const rates = offers.map((o) => {
+        const node = o.shippingDetails && shippingNodes.get(o.shippingDetails['@id']);
+        if (!node) return null;
+        return 'maxValue' in node.shippingRate ? `max ${node.shippingRate.maxValue}` : node.shippingRate.value;
+      });
+      if (JSON.stringify(rates) !== JSON.stringify(expect.shipping)) problems.push(`shipping rates ${JSON.stringify(rates)}; expected ${JSON.stringify(expect.shipping)}`);
+      offers.forEach((o) => {
+        const node = o.shippingDetails && shippingNodes.get(o.shippingDetails['@id']);
+        if (!node) return;
+        const t = node.deliveryTime;
+        const days = [t.handlingTime.minValue, t.handlingTime.maxValue, t.transitTime.minValue, t.transitTime.maxValue];
+        if (expect.shippingDays && JSON.stringify(days) !== JSON.stringify(expect.shippingDays)) problems.push(`shipping days ${JSON.stringify(days)} on ${node['@id']}; expected ${JSON.stringify(expect.shippingDays)}`);
+        if (node.shippingDestination.addressCountry !== settings.schema_country && node.shippingDestination.addressCountry !== 'US') problems.push('shipping destination is not the store country');
+      });
     }
     if (expect.orgBrandExcludes && orgNode && (orgNode.brand || []).some((b) => b['@id'] === expect.orgBrandExcludes)) problems.push(`Organization.brand claims ${expect.orgBrandExcludes}, a brand the company does not own`);
     if (!blocks.length && !problems.length) problems.push('no JSON-LD output');
