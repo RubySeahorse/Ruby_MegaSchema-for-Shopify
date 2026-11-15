@@ -275,6 +275,8 @@ function shopifyTokenizerProblems() {
           for (const field of ['name', 'description']) if (!n[field]) problems.push(`${type} missing ${field}: ${n['@id']}`);
           if (type === 'Product' && !n.offers) problems.push(`Product missing offers: ${n['@id']}`);
         }
+        // The Rich Results Test lists an unnamed top-level node as "Unnamed item".
+        if (type === 'BreadcrumbList' && (!n.name || n.name !== n.itemListElement.at(-1).name)) problems.push(`BreadcrumbList name "${n.name}" is not the last crumb's name: ${n['@id']}`);
         for (const [key, value] of Object.entries(n)) {
           if (typeof value === 'string' && /&(amp|quot|nbsp|#39|lt|gt);/.test(value)) problems.push(`HTML entity left in ${type || 'node'}.${key}: ${value.slice(0, 60)}`);
           const gtinKey = key.match(/^gtin(8|12|13|14)?$/);

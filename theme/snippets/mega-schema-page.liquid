@@ -217,6 +217,11 @@
   ,{
     "@type": "BreadcrumbList",
     "@id": {{ breadcrumb_id | json }},
+    {%- comment -%}
+      Named after the last crumb (the current page) so Google's Rich Results Test lists it by name
+      instead of "Unnamed item". Breadcrumb results read only itemListElement.
+    {%- endcomment -%}
+    "name": {{ crumb_name_list.last | strip | json }},
     "itemListElement": [
       {
         "@type": "ListItem",
