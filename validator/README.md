@@ -9,6 +9,7 @@ data, then checks that:
 - every `@id` reference points to a node on the same page,
 - no return policy or shipping node is left with nothing pointing to it, and nothing points to the Product, ProductGroup,
   BreadcrumbList or FAQPage, so the Schema Markup Validator lists each as its own section,
+- every BreadcrumbList is named after its last crumb, so the Rich Results Test does not list it as "Unnamed item",
 - a review-app style block (only an `@id` and a rating, as Bazaarvoice injects) merges into the product node,
 - every GTIN is digits only, the right length and has a valid GS1 check digit (sample data includes invalid
   barcodes that must be omitted),

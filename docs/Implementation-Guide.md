@@ -345,6 +345,10 @@ no BreadcrumbList. Ancestors come from `custom.parent_collection`, `custom.bread
 counting Home and the page. A loop in the hierarchy ends the walk. Blog: Home, blog. Article: Home, blog,
 article. Other pages: Home, page.
 
+The list's name is the last crumb's name, the current page's title. Without it, Google's Rich Results Test
+lists the breadcrumb as "Unnamed item". Breadcrumb results read only itemListElement, so the name changes the
+label and not the trail.
+
 ### ItemList (collection pages)
 
 name, description (collection description as plain text, up to 300 characters), numberOfItems (collection
