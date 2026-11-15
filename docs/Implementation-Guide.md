@@ -16,9 +16,9 @@ The build has seven theme files and one validator:
 | File | Role | Store-specific edits |
 | --- | --- | --- |
 | `snippets/mega-schema.liquid` | Entry point. Collects the nodes into one `@graph`. | None |
-| `snippets/mega-schema-site.liquid` | Organization, WebSite, Brand, return policy and shipping nodes | None (values come from settings) |
+| `snippets/mega-schema-site.liquid` | Organization, WebSite, Brand and return policy nodes | None (values come from settings) |
 | `snippets/mega-schema-page.liquid` | Page node, BreadcrumbList, collection ItemList, Blog, BlogPosting | About and Contact page handles, if they differ |
-| `snippets/mega-schema-product.liquid` | Product or ProductGroup, variants, offers | Option names and attribute metafields (Step 5) |
+| `snippets/mega-schema-product.liquid` | Product or ProductGroup, variants, offers, shipping nodes | Option names and attribute metafields (Step 5) |
 | `sections/metafield-faq.liquid` | Visible FAQ accordion and FAQPage markup | Metafield prefixes, if they differ |
 | `config/settings_schema.json` (added group) | Structured data settings | Default values for the store |
 | `layout/theme.liquid` (one edit) | Renders the entry point | Location of the theme's existing schema render |
@@ -47,6 +47,7 @@ The schema is only as accurate as these answers. Record them before writing any 
 | Are complementary or related products set in Search & Discovery? | Search & Discovery app > Product recommendations | `isRelatedTo`, `isSimilarTo` |
 | What does the return policy say? | Official policy text | Return policy nodes (Step 6) |
 | How long are handling and transit times, and what does shipping cost? | Operations | Shipping node |
+| Do any vendors or suppliers ship on their own rates and times, and is there a free-shipping threshold? | Operations; a checkout quote for each vendor | Vendor shipping, free-shipping threshold |
 | Where does the theme already output JSON-LD? | Search the theme for `ld+json` and `structured_data` (Step 4) | Removing duplicates |
 | Which apps inject structured data? | Theme editor > App embeds; view-source of a product page | Removing duplicates at launch |
 
@@ -159,8 +160,11 @@ values so a fresh install is correct before anyone opens the editor.
 | Country code | `schema_country` | Two letters; also used for policy countries | US |
 | Extra profile URLs | `schema_same_as` | One URL per line for profiles not in Settings > Brand (Amazon, Wikipedia) | Blank |
 | Brands | `schema_brands` | Comma-separated brands the company owns and makes. These products list the company as manufacturer; other vendors get a Brand entity on their own product pages only | Example Outdoor Co., Trailhead |
-| Shipping rate | `schema_shipping_rate` | Standard shipping cost; 0 for free | 0 |
+| Output product shipping details | `schema_shipping_enabled` | Off omits every shipping claim, for example while times are unconfirmed | On |
+| Shipping rate | `schema_shipping_rate` | Standard shipping cost in the store currency; 0 for free | 0 |
 | Handling and transit days | `schema_handling_min`, `schema_handling_max`, `schema_transit_min`, `schema_transit_max` | Business days from order to shipment, and in transit | 1 to 3, 3 to 5 |
+| Free shipping threshold | `schema_free_shipping_threshold` | Store-currency price at or above which shipping is free; 0 turns it off | 0, or 75 |
+| Vendor shipping | `schema_shipping_vendors` | One line per vendor that ships on its own terms: `Vendor \| rate \| handling days \| transit days`. Days are a single number or a min-max range; write `max 13.00` for a rate that varies up to a ceiling. A vendor listed with any field blank or not a number (such as TBD) gets no shipping details. Unlisted vendors use the store-wide values | Blank, or `Other Maker Co. \| 9.95 \| 2-3 \| 4-6` |
 | Return window | `schema_return_days` | Days allowed for returns | 30 |
 | Return shipping fee | `schema_return_fee` | Fee for change-of-mind returns; 0 for free returns | 25 |
 | Restocking fee | `schema_restocking_fee` | Percentage; 0 to omit | 10 |
@@ -241,7 +245,8 @@ government and health sites. Use the Schema Markup Validator to confirm the FAQP
 | Organization | `{site}/#organization` |
 | WebSite | `{site}/#website` |
 | Return policy / final-sale return policy | `{site}/#return_policy` / `{site}/#return_policy_final_sale` |
-| Shipping details | `{site}/#shipping_policy` |
+| Shipping details: store-wide / one vendor | `{site}/#shipping_policy` / `{site}/#shipping_policy_vendor-{vendor handle}` |
+| Shipping details above the free-shipping threshold | The same `@id` followed by `_free` |
 | Brand | `{site}/#brand-{brand handle}` |
 | Page node / BreadcrumbList | `{page}#webpage` / `{page}#breadcrumb` |
 | Product or ProductGroup | `{site}{product URL}` with no fragment. Review apps such as Bazaarvoice attach their rating and review JSON-LD to this exact `@id`. |
@@ -294,9 +299,18 @@ collection exists with the brand's handle.
 
 ### OfferShippingDetails (product pages)
 
-shippingRate (MonetaryAmount: `schema_shipping_rate`), shippingDestination (DefinedRegion: `schema_country`),
+shippingRate (MonetaryAmount in the store currency), shippingDestination (DefinedRegion: `schema_country`),
 deliveryTime (ShippingDeliveryTime) with handlingTime and transitTime as QuantitativeValue minValue and
-maxValue in unitCode DAY.
+maxValue in unitCode DAY. The product snippet outputs these nodes, only the ones its offers point to:
+
+| Product | Rate and times |
+| --- | --- |
+| Vendor has a complete line in `schema_shipping_vendors` (vendor matched without regard to case) | That line. A `max` rate outputs shippingRate maxValue instead of value |
+| Vendor listed, but no line for it is complete | No shippingDetails |
+| Vendor not listed | `schema_shipping_rate`, `schema_handling_*`, `schema_transit_*` |
+| Variant priced at or above `schema_free_shipping_threshold` (when above 0) | Same times, rate 0, in the `_free` node |
+| Rate above 0 and the page shows a currency other than the store currency | No shippingDetails, because the rate is known only in the store currency |
+| `schema_shipping_enabled` off | No shippingDetails |
 
 ### Page node (every page)
 
@@ -375,7 +389,7 @@ Organization when the author is the store name, otherwise a Person), publisher, 
 | offers.url, price, priceCurrency | Variant URL, price as a plain number, store currency |
 | offers.priceSpecification | StrikethroughPrice with the compare-at price, when it is above the price and `schema_show_strikethrough` is on |
 | offers.availability, itemCondition | InStock or OutOfStock; NewCondition |
-| offers.seller, shippingDetails, hasMerchantReturnPolicy | References to the Organization, shipping node and the return or final-sale policy |
+| offers.seller, shippingDetails, hasMerchantReturnPolicy | References to the Organization, the variant's shipping node (when shipping applies) and the return or final-sale policy |
 
 ### FAQPage (metafield-faq section)
 
@@ -416,6 +430,8 @@ pairs render as the visible accordion.
   JSON.
 - Business facts live in theme settings, never in code.
 - Policies state exactly what the official policy says. Confirm shipping times and fees with operations.
+  For vendor shipping, take rates from a checkout quote and record where each vendor's times came from. Leave a
+  field blank rather than guessing: a blank vendor gets no shipping claim instead of the store-wide one.
 - Strikethrough prices only for genuine former prices.
 - Prices are plain numbers with no currency symbol or thousands separator.
 - Barcodes are output only when they pass the GS1 check (digits only, a GTIN length and a correct check digit).

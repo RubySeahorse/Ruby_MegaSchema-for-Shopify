@@ -1,7 +1,7 @@
 {%- doc -%}
   Outputs the site-wide JSON-LD nodes for the MegaSchema @graph: Organization, WebSite, Brand,
-  the standard return policy, and on product pages the shipping details. The final-sale return policy is
-  output by snippets/mega-schema-product.liquid, only for products that use it.
+  and the standard return policy. The final-sale return policy and the shipping details are output by
+  snippets/mega-schema-product.liquid, only for products that use them.
   Each node is preceded by a comma; snippets/mega-schema.liquid removes the leading one.
   Business values come from the "Structured data" group in theme settings.
 
@@ -12,7 +12,6 @@
   assign org_id = site_url | append: '/#organization'
   assign website_id = site_url | append: '/#website'
   assign return_id = site_url | append: '/#return_policy'
-  assign shipping_id = site_url | append: '/#shipping_policy'
   assign search_url_template = site_url | append: routes.search_url | append: '?q={search_term_string}'
   assign schema_currency = cart.currency.iso_code
   assign schema_country = settings.schema_country | default: 'US'
@@ -178,34 +177,3 @@
   "itemDefectReturnFees": "https://schema.org/FreeReturn",
   "merchantReturnLink": {{ return_link | json }}
 }
-
-{%- if request.page_type == 'product' -%}
-  ,{
-    "@type": "OfferShippingDetails",
-    "@id": {{ shipping_id | json }},
-    "shippingRate": {
-      "@type": "MonetaryAmount",
-      "value": {{ settings.schema_shipping_rate | default: 0 }},
-      "currency": {{ schema_currency | json }}
-    },
-    "shippingDestination": {
-      "@type": "DefinedRegion",
-      "addressCountry": {{ schema_country | json }}
-    },
-    "deliveryTime": {
-      "@type": "ShippingDeliveryTime",
-      "handlingTime": {
-        "@type": "QuantitativeValue",
-        "minValue": {{ settings.schema_handling_min | default: 1 }},
-        "maxValue": {{ settings.schema_handling_max | default: 3 }},
-        "unitCode": "DAY"
-      },
-      "transitTime": {
-        "@type": "QuantitativeValue",
-        "minValue": {{ settings.schema_transit_min | default: 3 }},
-        "maxValue": {{ settings.schema_transit_max | default: 5 }},
-        "unitCode": "DAY"
-      }
-    }
-  }
-{%- endif -%}
